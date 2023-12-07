@@ -1,0 +1,144 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="ソース ファイル">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="ヘッダー ファイル">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="リソース ファイル">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="ソース ファイル\register">
+      <UniqueIdentifier>{37e0a7d1-1f70-499d-ab0b-98b9bcf8e006}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\base">
+      <UniqueIdentifier>{45e8a19e-5917-483a-a52d-b0a397ed3a5c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\register">
+      <UniqueIdentifier>{002696ff-202d-4d01-a258-cdef2f48c190}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\base">
+      <UniqueIdentifier>{c438a701-4985-44e6-8b64-fe57ac764cfc}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\base\digamma.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\dijkstra.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\gaussprod.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\geokdecomp.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="register\bcpd.c">
+      <Filter>ソース ファイル\register</Filter>
+    </ClCompile>
+    <ClCompile Include="register\getopt.c">
+      <Filter>ソース ファイル\register</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\gramdecomp.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\heap.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\kdtree.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\kernel.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\median.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\misc.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\mt19937-64.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="register\main.c">
+      <Filter>ソース ファイル\register</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\register\norm.c">
+      <Filter>ソース ファイル\register</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\register\info.c">
+      <Filter>ソース ファイル\register</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\sampling.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\sgraph.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\util.c">
+      <Filter>ソース ファイル\base</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\register\bcpd.h">
+      <Filter>ヘッダー ファイル\register</Filter>
+    </ClInclude>
+    <ClInclude Include="register\getopt.h">
+      <Filter>ヘッダー ファイル\register</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\register\info.h">
+      <Filter>ヘッダー ファイル\register</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\register\version.h">
+      <Filter>ヘッダー ファイル\register</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\register\norm.h">
+      <Filter>ヘッダー ファイル\register</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\dijkstra.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\gaussprod.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\geokdecomp.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\gramdecomp.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\heap.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\kdtree.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\kernel.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\lapack.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\median.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\misc.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\sampling.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\sgraph.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\base\util.h">
+      <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
