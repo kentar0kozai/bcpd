@@ -82,13 +82,27 @@ void save_corresp(
     strcpy(fne, prefix); strcat(fne, "e.txt"); if (pm.opt & PW_OPT_SAVEE) { fpe = fopen(fne, "w"); fprintf(fpe, "[n]\t[m]\t[probability]\n"); }
     strcpy(fnc, prefix); strcat(fnc, "c.txt"); if (pm.opt & PW_OPT_SAVEC) { fpc = fopen(fnc, "w"); fprintf(fpc, "[n]\t[1/0]\n"); }
 
-    T = calloc(3 * M + 1, si); bi = calloc(6 * M, si); bd = calloc(2 * M, sd); p = calloc(M, sd); l = calloc(M, si);
+    //T = calloc(3 * M + 1, si); bi = calloc(6 * M, si); bd = calloc(2 * M, sd); p = calloc(M, sd); l = calloc(M, si);
+
+    T = calloc((size_t)3 * M + 1, si);
+    bi = calloc((size_t)6 * M, si);
+    bd = calloc((size_t)2 * M, sd);
+    p = calloc((size_t)M, sd);
+    l = calloc((size_t)M, si);
+    if (l == NULL) {
+        fprintf(stderr, "Failed to allocate memory.\n");
+        return 1;
+    }
+
     kdtree(T, bi, bd, y, D, M); vol = volume(X, D, N); c = (pow(2.0 * M_PI * SQ(r), 0.5 * D) * omg) / (vol * (1 - omg));
     for (n = 0; n < N; n++) {
         /* compute P, c, e */
-        val = c; top = ct = 0; do { eballsearch_next(&m, S, &top, X + D * n, rad, y, T, D, M); if (m >= 0)l[ct++] = m; } while (top);
-        if (!ct) { nnsearch(&m, &min, X + D * n, y, T, D, M); l[ct++] = m; }
-        for (i = 0; i < ct; i++) { m = l[i]; p[i] = a[m] * gauss(y + D * m, X + D * n, D, r) * (db ? exp(-0.5 * D * SQ(sgm[m] * s / r)) : 1.0); val += p[i]; }
+        val = c; top = ct = 0; do { eballsearch_next(&m, S, &top, X + (size_t)D * n, rad, y, T, D, M); if (m >= 0)l[ct++] = m; } while (top);
+        if (!ct) {
+            nnsearch(&m, &min, X + (size_t)D * n, y, T, D, M);
+            l[ct++] = m;
+        }
+        for (i = 0; i < ct; i++) { m = l[i]; p[i] = a[m] * gauss(y + (size_t)D * m, X + (size_t)D * n, D, r) * (db ? exp(-0.5 * D * SQ(sgm[m] * s / r)) : 1.0); val += p[i]; }
         for (i = 0; i < ct; i++) { m = l[i]; p[i] /= val; }
         max = c / val; mmax = 0; for (i = 0; i < ct; i++)if (p[i] > max) { max = p[i]; mmax = l[i] + 1; }
         /* print P, c, e */
@@ -110,15 +124,20 @@ int save_optpath(const char* file, const double* sy, const double* X, pwsz sz, p
     fwrite(&D, si, 1, fp);
     fwrite(&M, si, 1, fp);
     fwrite(&lp, si, 1, fp);
-    fwrite(sy, sd, lp * D * M, fp);
-    fwrite(X, sd, D * N, fp);
+    fwrite(sy, sd, (size_t)lp * D * M, fp);
+    fwrite(X, sd, (size_t)D * N, fp);
     if (strlen(pm.fn[FACE_Y])) {
         double** b; int nl, nc, l, c; char mode; int* L = NULL;
         b = read2d(&nl, &nc, &mode, pm.fn[FACE_Y], "NA"); assert(nc == 3 || nc == 2);
-        L = calloc(nc * nl, si); for (l = 0; l < nl; l++)for (c = 0; c < nc; c++) { L[c + nc * l] = (int)b[l][c]; }
+        L = calloc((size_t)nc * nl, si); 
+        if (L == NULL) {
+            fprintf(stderr, "Failed to allocate memory.\n");
+            return 1;
+        }
+        for (l = 0; l < nl; l++)for (c = 0; c < nc; c++) { L[c + nc * l] = (int)b[l][c]; }
         fwrite(&nl, si, 1, fp);
         fwrite(&nc, si, 1, fp);
-        fwrite(L, si, nc * nl, fp);
+        fwrite(L, si, (size_t)nc * nl, fp);
         free(L); free(b);
     }
     fclose(fp);
@@ -345,8 +364,8 @@ int main(int argc, char** argv) {
     tt[0] = clock();
     /* read files */
     pw_getopt(&pm, argc, argv);
-    bX = read2d(&N, &D, &mode, pm.fn[TARGET], "NA"); X = calloc(D * N, sd); sz.D = D;
-    bY = read2d(&M, &D, &mode, pm.fn[SOURCE], "NA"); Y = calloc(D * M, sd);
+    bX = read2d(&N, &D, &mode, pm.fn[TARGET], "NA"); X = calloc((size_t)D * N, sd); sz.D = D;
+    bY = read2d(&M, &D, &mode, pm.fn[SOURCE], "NA"); Y = calloc((size_t)D * M, sd);
     /* init: random number */
     init_genrand64(pm.rns ? pm.rns : clock());
     /* check dimension */
@@ -387,11 +406,11 @@ int main(int argc, char** argv) {
     nx = pm.dwn[TARGET]; rx = pm.dwr[TARGET];
     ny = pm.dwn[SOURCE]; ry = pm.dwr[SOURCE];
     if ((nx || ny) && !(pm.opt & PW_OPT_QUIET)) fprintf(stderr, "  Downsampling ...");
-    if (nx) { X0 = X; N0 = N; N = sz.N = nx; X = calloc(D * N, sd); Ux = calloc(D * N, sd); downsample(X, Ux, N, X0, D, N0, rx); }
-    if (ny) { Y0 = Y; M0 = M; M = sz.M = ny; Y = calloc(D * M, sd); Uy = calloc(D * M, sd); downsample(Y, Uy, M, Y0, D, M0, ry); }
+    if (nx) { X0 = X; N0 = N; N = sz.N = nx; X = calloc((size_t)D * N, sd); Ux = calloc((size_t)D * N, sd); downsample(X, Ux, N, X0, D, N0, rx); }
+    if (ny) { Y0 = Y; M0 = M; M = sz.M = ny; Y = calloc((size_t)D * M, sd); Uy = calloc((size_t)D * M, sd); downsample(Y, Uy, M, Y0, D, M0, ry); }
     if ((nx || ny) && !(pm.opt & PW_OPT_QUIET)) fprintf(stderr, " done. \n\n");
     if (ny && geok) {
-        LQ0 = LQ; LQ = calloc(K + K * M, sd);
+        LQ0 = LQ; LQ = calloc((size_t)K + (size_t)K * M, sd);
         for (k = 0; k < K; k++) LQ[k] = LQ0[k];
         for (k = 0; k < K; k++)for (m = 0; m < M; m++) LQ[m + M * k + K] = LQ0[Uy[m] + M0 * k + K];
     }
@@ -403,8 +422,8 @@ int main(int argc, char** argv) {
     ysz = D * M; ysz += D * M * ((pm.opt & PW_OPT_PATHY) ? pm.nlp : 0);
     xsz = D * M; xsz += D * M * ((pm.opt & PW_OPT_PATHX) ? pm.nlp : 0);
     /* allocaltion */
-    wd = calloc(dsz, sd); x = calloc(xsz, sd); a = calloc(M, sd); u = calloc(D * M, sd); R = calloc(D * D, sd); sgm = calloc(M, sd);
-    wi = calloc(isz, si); y = calloc(ysz, sd); w = calloc(M, sd); v = calloc(D * M, sd); t = calloc(D, sd); pf = calloc(3 * pm.nlp, sd);
+    wd = calloc(dsz, sd); x = calloc(xsz, sd); a = calloc(M, sd); u = calloc((size_t)D * M, sd); R = calloc((size_t)D * D, sd); sgm = calloc(M, sd);
+    wi = calloc(isz, si); y = calloc(ysz, sd); w = calloc(M, sd); v = calloc((size_t)D * M, sd); t = calloc(D, sd); pf = calloc((size_t)3 * pm.nlp, sd);
     /* main computation */
     lp = bcpd(x, y, u, v, w, a, sgm, &s, R, t, &r, &Np, pf, wd, wi, X, Y, LQ, sz, pm);
     /* interpolation */
@@ -413,7 +432,7 @@ int main(int argc, char** argv) {
     tt[4] = clock();
     if (ny) {
         if (!(pm.opt & PW_OPT_QUIET)) fprintf(stderr, "%s  Interpolating ... ", (pm.opt & PW_OPT_HISTO) ? "\n" : "");
-        T = calloc(D * M0, sd);
+        T = calloc((size_t)D * M0, sd);
         if (pm.opt & PW_OPT_1NN) interpolate_1nn(T, Y0, M0, v, Y, &s, R, t, sz, pm);
         else if (LQ0)         interpolate_geok(T, Y0, M0, x, Y, w, &s, R, t, &r, LQ0, Uy, sz, pm);
         else                  interpolate(T, Y0, M0, x, Y, w, &s, R, t, &r, sz, pm);
@@ -427,7 +446,7 @@ int main(int argc, char** argv) {
         denormlize(T, muT, sgmT, M0, D);
         if (!(pm.opt & PW_OPT_QUIET)) fprintf(stderr, "done. \n\n");
         if (pm.opt & PW_OPT_INTPX) {
-            x0 = calloc(D * M0, sd);
+            x0 = calloc((size_t)D * M0, sd);
             N0 = nx ? N0 : N; interpolate_x(x0, T, X0, D, M0, N0, r, pm);
             denormlize(x0, muT, sgmT, M0, D);
         }
@@ -444,8 +463,8 @@ int main(int argc, char** argv) {
     if ((pm.opt & PW_OPT_SAVEP) | (pm.opt & PW_OPT_SAVEC) | (pm.opt & PW_OPT_SAVEE))
         save_corresp(pm.fn[OUTPUT], X, y, a, sgm, s, r, sz, pm);
     /* save trajectory */
-    if (pm.opt & PW_OPT_PATHX) save_optpath(xtraj, x + D * M, X, sz, pm, lp);
-    if (pm.opt & PW_OPT_PATHY) save_optpath(ytraj, y + D * M, X, sz, pm, lp);
+    if (pm.opt & PW_OPT_PATHX) save_optpath(xtraj, x + (size_t)D * M, X, sz, pm, lp);
+    if (pm.opt & PW_OPT_PATHY) save_optpath(ytraj, y + (size_t)D * M, X, sz, pm, lp);
     /* revert normalization */
     denormalize_batch(x, muX, sgmX, y, muY, sgmY, M, M, D, pm.nrm);
     /* save variables */
