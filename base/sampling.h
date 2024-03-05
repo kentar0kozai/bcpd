@@ -18,5 +18,4 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-void downsample  (double *x, int *U, int L, double *X, int D, int N, double e);
-
+void downsample(double *x, int *U, int L, double *X, int D, int N, double e);

@@ -18,8 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-void check_normtype    (const char *type);
-void denormlize        (double *X, const double *mu, double sc, int N, int D);
-void normalize_batch   (double *X,       double *muX, double *scX, double *Y,       double *muY, double *scY, int N, int M, int D, const char type);
-void denormalize_batch (double *X, const double *muX, double  scX, double *Y, const double *muY, double  scY, int N, int M, int D, const char type);
-void normalize         (double *X, double *mu, double *sc, int N, int D);
+void check_normtype(const char *type);
+void denormlize(double *X, const double *mu, double sc, int N, int D);
+void normalize_batch(double *X, double *muX, double *scX, double *Y,
+                     double *muY, double *scY, int N, int M, int D,
+                     const char type);
+void denormalize_batch(double *X, const double *muX, double scX, double *Y,
+                       const double *muY, double scY, int N, int M, int D,
+                       const char type);
+void normalize(double *X, double *mu, double *sc, int N, int D);

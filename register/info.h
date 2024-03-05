@@ -18,5 +18,5 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-void printUsage     (void);
-void printInfo      (pwsz sz, pwpm pm);
+void printUsage(void);
+void printInfo(pwsz sz, pwpm pm);

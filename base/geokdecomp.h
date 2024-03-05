@@ -18,4 +18,5 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-double *geokdecomp(int *Knew, const double *Y, int D, int M, const int **E, const double **W, int K, double bet, double tau, double eps);
+double *geokdecomp(int *Knew, const double *Y, int D, int M, const int **E,
+                   const double **W, int K, double bet, double tau, double eps);

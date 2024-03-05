@@ -18,20 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-void gramdecomp(
-  double        * Q,                /* O |  M x K  | eigenvectors            */
-  double        * L,                /* O |    K    | eigenvalues             */
-  double        * wd,               /* W | K(K+11) | working memory (double) */
-  int           * wi,               /* W |    M    | working memory (int)    */
-  const double  * Y,                /* I |  D x M  | data matrix             */
-  int             D,                /* I |    1    | dimension               */
-  int             M,                /* I |    1    | #points                 */
-  int             K,                /* I |    1    | #nystrom samples        */
-  const double    bet,              /* I |    1    | kernel parameter        */
-  double         (*kernel)(         /* I |   ptr   | kernel function         */
-                   const double *,  /* I |    D    | point 1                 */
-                   const double *,  /* I |    D    | point 2                 */
-                   int,             /* I |    1    | D: dimension            */
-                   double           /* I |    1    | kernel parameter        */
-                 )
-);
+void gramdecomp(double *Q,        /* O |  M x K  | eigenvectors            */
+                double *L,        /* O |    K    | eigenvalues             */
+                double *wd,       /* W | K(K+11) | working memory (double) */
+                int *wi,          /* W |    M    | working memory (int)    */
+                const double *Y,  /* I |  D x M  | data matrix             */
+                int D,            /* I |    1    | dimension               */
+                int M,            /* I |    1    | #points                 */
+                int K,            /* I |    1    | #nystrom samples        */
+                const double bet, /* I |    1    | kernel parameter        */
+                double (*kernel)( /* I |   ptr   | kernel function         */
+                                 const double *, /* I |    D    | point 1 */
+                                 const double *, /* I |    D    | point 2 */
+                                 int,   /* I |    1    | D: dimension   */
+                                 double /* I |    1    | kernel parameter */
+                                 ));

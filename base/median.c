@@ -18,26 +18,41 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include<stdio.h>
-#include<stdlib.h>
-#include<math.h>
-#include<assert.h>
+#include <assert.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-double median(double *a, double *w, const int N){
-  const int c = N/2;
-  int     i,j,k,l,u,e,ofs=0,size=N;
-  double  *tmp, p;/*pivot*/
+double median(double *a, double *w, const int N) {
+  const int c = N / 2;
+  int i, j, k, l, u, e, ofs = 0, size = N;
+  double *tmp, p; /*pivot*/
 
-  while(1){i=j=k=0;p=a[0];e=1;
-    for(i=1;i<size;i++){
-      if      (a[i]< p)  a[j++]=a[i];
-      else if (a[i]> p)  w[k++]=a[i];
-      else   /*a[i]==p*/ e++;
-    } l=ofs+j;u=l+e-1;
+  while (1) {
+    i = j = k = 0;
+    p = a[0];
+    e = 1;
+    for (i = 1; i < size; i++) {
+      if (a[i] < p)
+        a[j++] = a[i];
+      else if (a[i] > p)
+        w[k++] = a[i];
+      else /*a[i]==p*/
+        e++;
+    }
+    l = ofs + j;
+    u = l + e - 1;
 
-    if      (c<l) {size=j;}
-    else if (c>u) {tmp=a;a=w;w=tmp;ofs=u+1;size=k;}
-    else break;
+    if (c < l) {
+      size = j;
+    } else if (c > u) {
+      tmp = a;
+      a = w;
+      w = tmp;
+      ofs = u + 1;
+      size = k;
+    } else
+      break;
   }
 
   return p;

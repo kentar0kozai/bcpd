@@ -18,14 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-void dijkstra(
-    double        * D,   /* O |    N    | distance          */
-    int           * P,   /* O |    N    | previous node     */
-    int           * wk,  /* W |  2N+1   | tag(N), heap(N+1) */
-    const int    ** E,   /* I |  N x *  | edges             */
-    const double ** W,   /* I |  N x *  | weights           */
-    int             N,   /* I |  const. | #nodes            */
-    int             s    /* I |  const. | start  node       */
- );
+void dijkstra(double *D,        /* O |    N    | distance          */
+              int *P,           /* O |    N    | previous node     */
+              int *wk,          /* W |  2N+1   | tag(N), heap(N+1) */
+              const int **E,    /* I |  N x *  | edges             */
+              const double **W, /* I |  N x *  | weights           */
+              int N,            /* I |  const. | #nodes            */
+              int s             /* I |  const. | start  node       */
+);
 
 void tracepath(int *path, int *len, const int *P, int N, int s, int g);
