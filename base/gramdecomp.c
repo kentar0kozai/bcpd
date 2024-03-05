@@ -26,65 +26,67 @@
 #include "lapack.h"
 #include "misc.h"
 
-void gramdecomp(double *Q,        /* O |  M x K  | eigenvectors            */
-                double *L,        /* O |    K    | eigenvalues             */
-                double *wd,       /* W | K(K+11) | working memory (double) */
-                int *wi,          /* W |    M    | working memory (int)    */
-                const double *Y,  /* I |  D x M  | data matrix             */
-                int D,            /* I |    1    | dimension               */
-                int M,            /* I |    1    | #points                 */
-                int K,            /* I |    1    | #nystrom samples        */
-                const double bet, /* I |    1    | kernel parameter        */
-                double (*kernel)( /* I |   ptr   | kernel function         */
-                                 const double *, /* I |    D    | point 1 */
-                                 const double *, /* I |    D    | point 2 */
-                                 int,   /* I |    1    | D: dimension   */
-                                 double /* I |    1    | kernel parameter */
-                                 )) {
-  int i, j, k, m;
-  double c, val;
-  double *A, *C, *Lr;
-  int *U;
-  int sd = 0, si = 0;
-  char uplo = 'U', jobz = 'V';
-  int info, lwork;
-  assert(K >= 1 && K <= M);
-  /* alias */
-  lwork = K * 10;
-  A = wd + sd;
-  sd += K * K;
-  Lr = wd + sd;
-  sd += K;
-  C = wd + sd;
-  sd += lwork;
-  U = wi + si;
-  si += M;
+void gramdecomp(double* Q, /* O |  M x K  | eigenvectors            */
+    double* L, /* O |    K    | eigenvalues             */
+    double* wd, /* W | K(K+11) | working memory (double) */
+    int* wi, /* W |    M    | working memory (int)    */
+    const double* Y, /* I |  D x M  | data matrix             */
+    int D, /* I |    1    | dimension               */
+    int M, /* I |    1    | #points                 */
+    int K, /* I |    1    | #nystrom samples        */
+    const double bet, /* I |    1    | kernel parameter        */
+    double (*kernel)(/* I |   ptr   | kernel function         */
+        const double*, /* I |    D    | point 1 */
+        const double*, /* I |    D    | point 2 */
+        int, /* I |    1    | D: dimension   */
+        double /* I |    1    | kernel parameter */
+        ))
+{
+    int i, j, k, m;
+    double c, val;
+    double *A, *C, *Lr;
+    int* U;
+    int sd = 0, si = 0;
+    char uplo = 'U', jobz = 'V';
+    int info, lwork;
+    assert(K >= 1 && K <= M);
+    /* alias */
+    lwork = K * 10;
+    A = wd + sd;
+    sd += K * K;
+    Lr = wd + sd;
+    sd += K;
+    C = wd + sd;
+    sd += lwork;
+    U = wi + si;
+    si += M;
 
-  /* main computation */
-  randperm(U, M);
-  c = K / (double)M;
-  for (i = 0; i < K; i++)
-    for (j = 0; j < K; j++)
-      A[i + K * j] = (*kernel)(Y + D * U[i], Y + D * U[j], D, bet);
-  dsyev_(&jobz, &uplo, &K, A, &K, Lr, C, &lwork, &info);
-  if (info != 0) {
-    goto err;
-  }
-#pragma omp parallel for private(m) private(i) private(val)
-  for (k = 0; k < K; k++)
-    for (m = 0; m < M; m++) {
-      val = 0;
-      for (i = 0; i < K; i++) {
-        val +=
-            A[i + K * (K - k - 1)] * (*kernel)(Y + D * m, Y + D * U[i], D, bet);
-      }
-      Q[m + M * k] = sqrt(c) * val / Lr[K - k - 1];
+    /* main computation */
+    randperm(U, M);
+    c = K / (double)M;
+    for (i = 0; i < K; i++)
+        for (j = 0; j < K; j++)
+            A[i + K * j] = (*kernel)(Y + D * U[i], Y + D * U[j], D, bet);
+    dsyev_(&jobz, &uplo, &K, A, &K, Lr, C, &lwork, &info);
+    if (info != 0) {
+        goto err;
     }
-  for (k = 0; k < K; k++) L[k] = Lr[K - k - 1] / c;
-  for (k = 0; k < K; k++) L[k] += 1e-9;
+#pragma omp parallel for private(m) private(i) private(val)
+    for (k = 0; k < K; k++)
+        for (m = 0; m < M; m++) {
+            val = 0;
+            for (i = 0; i < K; i++) {
+                val += A[i + K * (K - k - 1)] * (*kernel)(Y + D * m, Y + D * U[i], D, bet);
+            }
+            Q[m + M * k] = sqrt(c) * val / Lr[K - k - 1];
+        }
+    for (k = 0; k < K; k++)
+        L[k] = Lr[K - k - 1] / c;
+    for (k = 0; k < K; k++)
+        L[k] += 1e-9;
 
-  return;
+    return;
 err:
-  printf("ERROR: The approximate eigendecomposition failed.\n");
-  exit(EXIT_FAILURE);
+    printf("ERROR: The approximate eigendecomposition failed.\n");
+    exit(EXIT_FAILURE);
 }

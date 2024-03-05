@@ -20,44 +20,44 @@
 
 #define MAXTREEDEPTH 32
 
-void kdtree(int *T,    /* O | 3N+1 | depth(N),left(N),right(N),root(1)    */
-            int *a,    /* W |  6N  | index(N),size(N),stack(N),buffer(3N) */
-            double *v, /* W |  2N  | buffer1(N), buffer2(N)               */
-            const double *X, /* I |  DN  | points */
-            int D, /* I |      | dimension                            */
-            int N  /* I |      | #points                              */
+void kdtree(int* T, /* O | 3N+1 | depth(N),left(N),right(N),root(1)    */
+    int* a, /* W |  6N  | index(N),size(N),stack(N),buffer(3N) */
+    double* v, /* W |  2N  | buffer1(N), buffer2(N)               */
+    const double* X, /* I |  DN  | points */
+    int D, /* I |      | dimension                            */
+    int N /* I |      | #points                              */
 );
 
-int *kdtree_build(const double *X, int D, int N);
+int* kdtree_build(const double* X, int D, int N);
 
 void eballsearch_next(
-    int *m,          /*  O  |   1   | next index within radius e */
-    int *S,          /*  W  | 2logN | stack                      */
-    int *q,          /*  W  |   1   | top index of stack 'S'     */
-    const double *y, /*  I  |   D   | the point of interest      */
-    double e,        /*  I  | const.| ball radius                */
-    const double *X, /*  I  |   DN  | points                     */
-    const int *T,    /*  I  |  3N+1 | kdtree                     */
-    int D,           /*  I  | const.| dimension                  */
-    int N            /*  I  | const.| #points                    */
+    int* m, /*  O  |   1   | next index within radius e */
+    int* S, /*  W  | 2logN | stack                      */
+    int* q, /*  W  |   1   | top index of stack 'S'     */
+    const double* y, /*  I  |   D   | the point of interest      */
+    double e, /*  I  | const.| ball radius                */
+    const double* X, /*  I  |   DN  | points                     */
+    const int* T, /*  I  |  3N+1 | kdtree                     */
+    int D, /*  I  | const.| dimension                  */
+    int N /*  I  | const.| #points                    */
 );
 
-void nnsearch(int *i,          /*  O  | const.| nearest neighbor          */
-              double *e,       /*  O  | const.| distance                  */
-              const double *y, /*  I  | const.| the point of interest     */
-              const double *X, /*  I  |  DxN  | points                    */
-              const int *T,    /*  I  | 3xN+1 | kdtree                    */
-              int D,           /*  I  | const.| dimension                 */
-              int N            /*  I  | const.| #points                   */
+void nnsearch(int* i, /*  O  | const.| nearest neighbor          */
+    double* e, /*  O  | const.| distance                  */
+    const double* y, /*  I  | const.| the point of interest     */
+    const double* X, /*  I  |  DxN  | points                    */
+    const int* T, /*  I  | 3xN+1 | kdtree                    */
+    int D, /*  I  | const.| dimension                 */
+    int N /*  I  | const.| #points                   */
 );
 
-void knnsearch(int *Q,          /*  O  |  1+K  | k nearest neighbors (+size) */
-               int K,           /* I/O | const.| #neighbors                  */
-               double e,        /* I/O | const.| maximum distance            */
-               const double *y, /*  I  | const.| the point of interest       */
-               int me,          /*  I  | const.| y's index if y in X else <0 */
-               const double *X, /*  I  |  DxN  | points                      */
-               const int *T,    /*  I  | 3xN+1 | kdtree                      */
-               int D,           /*  I  | const.| dimension                   */
-               int N            /*  I  | const.| #points                     */
+void knnsearch(int* Q, /*  O  |  1+K  | k nearest neighbors (+size) */
+    int K, /* I/O | const.| #neighbors                  */
+    double e, /* I/O | const.| maximum distance            */
+    const double* y, /*  I  | const.| the point of interest       */
+    int me, /*  I  | const.| y's index if y in X else <0 */
+    const double* X, /*  I  |  DxN  | points                      */
+    const int* T, /*  I  | 3xN+1 | kdtree                      */
+    int D, /*  I  | const.| dimension                   */
+    int N /*  I  | const.| #points                     */
 );

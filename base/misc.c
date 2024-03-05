@@ -25,41 +25,43 @@
 
 double genrand64_real2(void);
 
-void shuffle(int *a, int n) {
-  int i, j, t;
-  for (i = n - 1; i; i--) {
-    j = (int)((i + 1) * genrand64_real2());
-    t = a[i];
-    a[i] = a[j];
-    a[j] = t;
-  }
+void shuffle(int* a, int n)
+{
+    int i, j, t;
+    for (i = n - 1; i; i--) {
+        j = (int)((i + 1) * genrand64_real2());
+        t = a[i];
+        a[i] = a[j];
+        a[j] = t;
+    }
 }
-void randperm(int *a, int n) {
-  int i;
-  for (i = 0; i < n; i++) a[i] = i;
-  shuffle(a, n);
-}
-
-double volume(const double *x, int D, int N) {
-  int d, n;
-  double max, min, V = 1.0;
-  for (d = 0; d < D; d++) {
-    max = x[d];
-    for (n = 1; n < N; n++) max = fmax(max, x[d + D * n]);
-    min = x[d];
-    for (n = 1; n < N; n++) min = fmin(min, x[d + D * n]);
-    V *= (max - min) * (N + 1) / (double)N;
-  }
-  return V;
+void randperm(int* a, int n)
+{
+    int i;
+    for (i = 0; i < n; i++)
+        a[i] = i;
+    shuffle(a, n);
 }
 
-double det(const double *A, const int D) {
-  assert(D == 2 || D == 3);
-  return D == 2 ? A[0] * A[3] - A[1] * A[2]
-                : A[0 + D * 0] * (A[1 + D * 1] * A[2 + D * 2] -
-                                  A[1 + D * 2] * A[2 + D * 1]) -
-                      A[0 + D * 1] * (A[1 + D * 0] * A[2 + D * 2] -
-                                      A[1 + D * 2] * A[2 + D * 0]) +
-                      A[0 + D * 2] * (A[1 + D * 0] * A[2 + D * 1] -
-                                      A[1 + D * 1] * A[2 + D * 0]);
+double volume(const double* x, int D, int N)
+{
+    int d, n;
+    double max, min, V = 1.0;
+    for (d = 0; d < D; d++) {
+        max = x[d];
+        for (n = 1; n < N; n++)
+            max = fmax(max, x[d + D * n]);
+        min = x[d];
+        for (n = 1; n < N; n++)
+            min = fmin(min, x[d + D * n]);
+        V *= (max - min) * (N + 1) / (double)N;
+    }
+    return V;
+}
+
+double det(const double* A, const int D)
+{
+    assert(D == 2 || D == 3);
+    return D == 2 ? A[0] * A[3] - A[1] * A[2]
+                  : A[0 + D * 0] * (A[1 + D * 1] * A[2 + D * 2] - A[1 + D * 2] * A[2 + D * 1]) - A[0 + D * 1] * (A[1 + D * 0] * A[2 + D * 2] - A[1 + D * 2] * A[2 + D * 0]) + A[0 + D * 2] * (A[1 + D * 0] * A[2 + D * 1] - A[1 + D * 1] * A[2 + D * 0]);
 }
