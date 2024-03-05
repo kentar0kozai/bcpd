@@ -10,7 +10,6 @@
 /win/MinGW-x32/data
 /win/MinGW-x32/Work
 *.bin
-*.py
 *.gif
 /win/MinGW-x32/output_y.txt
 /win/MinGW-x32/output_y.interpolated.txt
