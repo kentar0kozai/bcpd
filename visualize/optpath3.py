@@ -17,7 +17,7 @@ def plt_to_cv2(plt_figure):
 
 
 # Load data from binary file
-with open("../win/VisualStudio/x64/Release/.optpath.bin", "rb") as fp:
+with open("../win/VisualStudio/BCPD-Win/.optpath.bin", "rb") as fp:
     N = np.frombuffer(fp.read(4), dtype=np.int32)[0]
     D = np.frombuffer(fp.read(4), dtype=np.int32)[0]
     M = np.frombuffer(fp.read(4), dtype=np.int32)[0]
@@ -32,7 +32,6 @@ with open("../win/VisualStudio/x64/Release/.optpath.bin", "rb") as fp:
 def plot_2d_views(X, T, png=1, sub=1, traj=1):
     title1 = "Before Registration"
     title2 = "Optimization Trajectory"
-    first_draw = True
 
     if traj:
         for d in range(D):
@@ -84,8 +83,8 @@ def plot_2d_views(X, T, png=1, sub=1, traj=1):
                     plt.savefig(f"Work/otw-v{d}-{l:04d}.png")
 
                 img = plt_to_cv2(fig)
-                # cv2.imshow("2D" + str(d), img)
-                # cv2.waitKey(1)
+                cv2.imshow("2D" + str(d), img)
+                cv2.waitKey(1)
                 if sub == 1:
                     plt.subplot(1, 2, 2).clear()
                 else:

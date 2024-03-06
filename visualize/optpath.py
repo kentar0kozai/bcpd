@@ -17,7 +17,7 @@ def plt_to_cv2(plt_figure):
 
 
 # Load data from binary file
-with open("../win/VisualStudio/x64/Release/.optpath.bin", "rb") as fp:
+with open("../win/VisualStudio/BCPD-Win/.optpath.bin", "rb") as fp:
     N = np.frombuffer(fp.read(4), dtype=np.int32)[0]
     D = np.frombuffer(fp.read(4), dtype=np.int32)[0]
     M = np.frombuffer(fp.read(4), dtype=np.int32)[0]
