@@ -30,6 +30,7 @@
 #include <vector>
 #include <windows.h>
 
+// #include "../../../../../libigl/include/igl/readPLY.h"
 #include "../../../../base/geokdecomp.h"
 #include "../../../../base/kdtree.h"
 #include "../../../../base/kernel.h"
@@ -46,19 +47,17 @@
 #define M_PI 3.14159265358979323846 // pi
 
 void init_genrand64(unsigned long s);
-enum transpose { ASIS = 0,
-    TRANSPOSE = 1 };
+enum transpose { ASIS = 0, TRANSPOSE = 1 };
 
-void scan_kernel(pwpm* pm, const char* arg)
-{
-    char* p;
+void scan_kernel(pwpm *pm, const char *arg) {
+    char *p;
 
     if (std::tolower(*arg) != 'g') {
         pm->G = std::atoi(arg);
         return;
     }
 
-    p = std::strchr(const_cast<char*>(arg), ',');
+    p = std::strchr(const_cast<char *>(arg), ',');
     if (!p) {
         std::printf("ERROR: -G: Arguments are wrongly specified. Abort.\n");
         std::exit(EXIT_FAILURE);
@@ -70,14 +69,12 @@ void scan_kernel(pwpm* pm, const char* arg)
         std::sscanf(p + 1, "%lf,%d,%lf", &(pm->tau), &(pm->nnk), &(pm->nnr));
 
     if (pm->tau < 0 || pm->tau > 1) {
-        std::printf(
-            "ERROR: the 2nd argument of -G (tau) must be in range [0,1]. Abort.\n");
+        std::printf("ERROR: the 2nd argument of -G (tau) must be in range [0,1]. Abort.\n");
         std::exit(EXIT_FAILURE);
     }
 }
 
-void scan_dwpm(int* dwn, double* dwr, const std::vector<std::string>& opts)
-{
+void scan_dwpm(int *dwn, double *dwr, const std::vector<std::string> &opts) {
     if (opts.empty() || opts.size() != 3) {
         std::cout << "ERROR: The argument of '-D' must be 'char,int,real'." << std::endl;
         std::exit(EXIT_FAILURE);
@@ -130,8 +127,7 @@ void scan_dwpm(int* dwn, double* dwr, const std::vector<std::string>& opts)
     }
 }
 
-void check_prms(const pwpm pm, const pwsz sz)
-{
+void check_prms(const pwpm pm, const pwsz sz) {
     int M = sz.M, N = sz.N, M0 = pm.dwn[SOURCE], N0 = pm.dwn[TARGET];
     M = M0 ? M0 : M;
     N = N0 ? N0 : N;
@@ -216,15 +212,13 @@ void check_prms(const pwpm pm, const pwsz sz)
         exit(EXIT_FAILURE);
     }
     if (!strchr("exyn", pm.nrm)) {
-        printf(
-            "\n  ERROR: -u: Argument must be one of 'e', 'x', 'y' and 'n'. "
-            "Abort.\n\n");
+        printf("\n  ERROR: -u: Argument must be one of 'e', 'x', 'y' and 'n'. "
+               "Abort.\n\n");
         exit(EXIT_FAILURE);
     }
 }
 
-std::vector<std::string> getopt(int argc, char** argv, const std::string& optstring)
-{
+std::vector<std::string> getopt(int argc, char **argv, const std::string &optstring) {
     std::vector<std::string> opts;
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -239,8 +233,7 @@ std::vector<std::string> getopt(int argc, char** argv, const std::string& optstr
     return opts;
 }
 
-std::vector<std::string> splitString(const std::string& str, char delimiter)
-{
+std::vector<std::string> splitString(const std::string &str, char delimiter) {
     std::vector<std::string> tokens;
     std::string token;
     std::istringstream tokenStream(str);
@@ -250,9 +243,8 @@ std::vector<std::string> splitString(const std::string& str, char delimiter)
     return tokens;
 }
 
-std::string getOptionValue(const std::vector<std::string>& opts, const std::string& option)
-{
-    for (const auto& opt : opts) {
+std::string getOptionValue(const std::vector<std::string> &opts, const std::string &option) {
+    for (const auto &opt : opts) {
         if (opt.substr(0, option.length()) == option) {
             return opt.substr(option.length());
         }
@@ -260,8 +252,7 @@ std::string getOptionValue(const std::vector<std::string>& opts, const std::stri
     return "";
 }
 
-void pw_getopt(pwpm* pm, int argc, char** argv)
-{
+void pw_getopt(pwpm *pm, int argc, char **argv) {
     strcpy(pm->fn[TARGET], "X.txt");
     std::cout << pm->fn[TARGET] << std::endl;
     pm->omg = 0.0;
@@ -302,7 +293,7 @@ void pw_getopt(pwpm* pm, int argc, char** argv)
     std::vector<std::string> opts = getopt(argc, argv, "X:Y:D:z:u:r:w:l:b:k:g:d:e:c:n:N:G:J:K:o:x:y:f:s:hpqvaAtWS1");
     if (opts.empty())
         std::cout << "No options provided." << std::endl;
-    for (const auto& op : opts) {
+    for (const auto &op : opts) {
         std::cout << "Option : " << op << std::endl;
     }
     // scan_dwpm(pm->dwn, pm->dwr, opts);
@@ -310,7 +301,7 @@ void pw_getopt(pwpm* pm, int argc, char** argv)
     if (!dValue.empty()) {
         std::cout << "Value of option 'D': " << dValue << '\n';
         std::vector<std::string> dParams = splitString(dValue.substr(1), ',');
-        // TODO: ‚±‚±‚©‚çscan_dwpm‚ÌÀ‘•‚ğQl‚É‚µ‚ÄÀ‘•‚·‚é
+        // TODO: ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½scan_dwpmãƒ»ï½½ï¾Œè¶£ï½¿ï½½ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½Qãƒ»ï½½lãƒ»ï½½ï¾‰ã‚‘ï½¿ï½½ãƒ»ï½½ï¾„è¶£ï½¿ï½½ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½ãƒ»ï½½
         if (dParams.size() == 3) {
             pm->dwn[SOURCE] = dParams[0] == "B" ? 1 : 0;
             pm->dwr[SOURCE] = std::stof(dParams[1]);
@@ -328,8 +319,7 @@ void pw_getopt(pwpm* pm, int argc, char** argv)
     return;
 }
 
-void memsize(int* dsz, int* isz, pwsz sz, pwpm pm)
-{
+void memsize(int *dsz, int *isz, pwsz sz, pwpm pm) {
     int M = sz.M, N = sz.N, J = sz.J, K = sz.K, D = sz.D;
     int T = pm.opt & PW_OPT_LOCAL;
     int L = M > N ? M : N, mtd = MAXTREEDEPTH;
@@ -339,19 +329,18 @@ void memsize(int* dsz, int* isz, pwsz sz, pwpm pm)
     *dsz += K ? K * (2 * M + 3 * K + D + 12) : (3 * M * M); /* low-rank        */
     *isz += J ? (M + N) : 0;
     *dsz += J ? (D * (M + N + J) + J + J * J) : 0; /* nystrom         */
-    *dsz += J * (1 + D + 1); /* nystrom (Df=1)  */
+    *dsz += J * (1 + D + 1);                       /* nystrom (Df=1)  */
     *isz += T ? L * 6 : 0;
-    *dsz += T ? L * 2 : 0; /* kdtree (build)  */
-    *isz += T ? L * (2 + mtd) : 0; /* kdtree (search) */
+    *dsz += T ? L * 2 : 0;           /* kdtree (build)  */
+    *isz += T ? L * (2 + mtd) : 0;   /* kdtree (search) */
     *isz += T ? 2 * (3 * L + 1) : 0; /* kdtree (tree)   */
-    *dsz += M; /* function reg    */
+    *dsz += M;                       /* function reg    */
 }
 
-void print_bbox(const double* X, int D, int N)
-{
+void print_bbox(const double *X, int D, int N) {
     int d, n;
     double max, min;
-    char ch[3] = { 'x', 'y', 'z' };
+    char ch[3] = {'x', 'y', 'z'};
     for (d = 0; d < D; d++) {
         max = X[d];
         for (n = 1; n < N; n++)
@@ -359,16 +348,13 @@ void print_bbox(const double* X, int D, int N)
         min = X[d];
         for (n = 1; n < N; n++)
             min = fmin(min, X[d + D * n]);
-        fprintf(stderr, "%c=[%.2f,%.2f]%s", ch[d], min, max,
-            d == D - 1 ? "\n" : ", ");
+        fprintf(stderr, "%c=[%.2f,%.2f]%s", ch[d], min, max, d == D - 1 ? "\n" : ", ");
     }
 }
 
-void print_norm(const double* X, const double* Y, int D, int N, int M, int sw,
-    char type)
-{
+void print_norm(const double *X, const double *Y, int D, int N, int M, int sw, char type) {
     int t = 0;
-    char name[4][64] = { "for each", "using X", "using Y", "skipped" };
+    char name[4][64] = {"for each", "using X", "using Y", "skipped"};
     switch (type) {
     case 'e':
         t = 0;
@@ -396,17 +382,14 @@ void print_norm(const double* X, const double* Y, int D, int N, int M, int sw,
         fprintf(stderr, "\n");
 }
 
-double tvcalc(const LARGE_INTEGER* end, const LARGE_INTEGER* beg)
-{
+double tvcalc(const LARGE_INTEGER *end, const LARGE_INTEGER *beg) {
     LARGE_INTEGER freq;
     QueryPerformanceFrequency(&freq);
 
     return (double)(end->QuadPart - beg->QuadPart) / freq.QuadPart;
 }
 
-void fprint_comptime(FILE* fp, const LARGE_INTEGER* tv, double* tt, int nx,
-    int ny, int geok)
-{
+void fprint_comptime(FILE *fp, const LARGE_INTEGER *tv, double *tt, int nx, int ny, int geok) {
     if (fp == stderr)
         fprintf(fp, "  Computing Time:\n");
 #ifdef MINGW32
@@ -419,16 +402,12 @@ void fprint_comptime(FILE* fp, const LARGE_INTEGER* tv, double* tt, int nx,
         fprintf(fp, "    Interpolation:   %.3lf s\n", tvcalc(tv + 5, tv + 4));
 #else
     if (geok)
-        fprintf(fp, "    FPSA algorithm:  %.3lf s (real) / %.3lf s (cpu)\n",
-            tvcalc(tv + 2, tv + 1), (tt[2] - tt[1]) / CLOCKS_PER_SEC);
+        fprintf(fp, "    FPSA algorithm:  %.3lf s (real) / %.3lf s (cpu)\n", tvcalc(tv + 2, tv + 1), (tt[2] - tt[1]) / CLOCKS_PER_SEC);
     if (nx || ny)
-        fprintf(fp, "    Downsampling:    %.3lf s (real) / %.3lf s (cpu)\n",
-            tvcalc(tv + 3, tv + 2), (tt[3] - tt[2]) / CLOCKS_PER_SEC);
-    fprintf(fp, "    VB Optimization: %.3f s (real) / %.3lf s (cpu)\n",
-        tvcalc(tv + 4, tv + 3), (tt[4] - tt[3]) / CLOCKS_PER_SEC);
+        fprintf(fp, "    Downsampling:    %.3lf s (real) / %.3lf s (cpu)\n", tvcalc(tv + 3, tv + 2), (tt[3] - tt[2]) / CLOCKS_PER_SEC);
+    fprintf(fp, "    VB Optimization: %.3f s (real) / %.3lf s (cpu)\n", tvcalc(tv + 4, tv + 3), (tt[4] - tt[3]) / CLOCKS_PER_SEC);
     if (ny)
-        fprintf(fp, "    Interpolation:   %.3lf s (real) / %.3lf s (cpu)\n",
-            tvcalc(tv + 5, tv + 4), (tt[5] - tt[4]) / CLOCKS_PER_SEC);
+        fprintf(fp, "    Interpolation:   %.3lf s (real) / %.3lf s (cpu)\n", tvcalc(tv + 5, tv + 4), (tt[5] - tt[4]) / CLOCKS_PER_SEC);
 #endif
     fprintf(fp, "    File reading:    %.3lf s\n", tvcalc(tv + 1, tv + 0));
     fprintf(fp, "    File writing:    %.3lf s\n", tvcalc(tv + 6, tv + 5));
@@ -436,35 +415,34 @@ void fprint_comptime(FILE* fp, const LARGE_INTEGER* tv, double* tt, int nx,
         fprintf(fp, "\n");
 }
 
-int main(int argc, char** argv)
-{
-    int d, k, l, m, n; // ƒ‹[ƒvƒJƒEƒ“ƒ^[
-    int D, M, N, lp; // D:ŸŒ³”CM:“_ŒQX‚Ì“_”CN:“_ŒQY‚Ì“_”
-    char mode; // ƒtƒ@ƒCƒ‹“Çƒ‚[ƒh
-    double s, r, Np, sgmX, sgmY, *muX, *muY; // s:ƒXƒP[ƒ‹Cr:•ÏŒ`‘e‚³CNp:„’è‚³‚ê‚é“_‚Ì”CsgmX,sgmY:•W€•Î·CƒXƒP[ƒ‹‚Ì’²®‚Ég—pCmuX,muY:•½‹ÏƒxƒNƒgƒ‹
-    double *u, *v, *w; // u,v:•ÏŒ`ƒxƒNƒgƒ‹Cw:d‚İ
-    double **R, *t, *a, *sgm; // R:‰ñ“]ƒxƒNƒgƒ‹Ct:•½sˆÚ“®ƒxƒNƒgƒ‹Ca:Še“_‚Ì‘Î‰Šm—¦Csgm:Še“_‚ÌƒXƒP[ƒ‹•Ï‰»
-    pwpm pm; // ƒAƒ‹ƒS‚Ìƒpƒ‰ƒ[ƒ^‚ğŠi”[‚·‚é\‘¢‘Ì
-    pwsz sz; // ƒTƒCƒY‚âŸŒ³”‚ğŠi”[‚·‚é\‘¢‘Ì
-    double *x, *y, *X, *Y, *wd, *bX, **bY; // x,y:•ÏŠ·Œã‚Ì“_ŒQCX,Y:Œ³‚Ì“_ŒQCwd:ì‹Æ—pƒf[ƒ^‚ğŠi”[CbX,bY:ƒtƒ@ƒCƒ‹‚©‚ç“Ç‚İ‚ñ‚¾¶‚Ì“_ŒQ
-    int* wi; // ì‹Æ—p‚Ì®”ƒf[ƒ^‚ğŠi”[
-    int sd = sizeof(double), si = sizeof(int); // sd,si:double,intŒ^‚Ì•Ï”‚ªƒƒ‚ƒŠã‚Åè‚ß‚éƒTƒCƒY‚ğƒoƒCƒg’PˆÊ‚Å•ÛCŠî–{‚Í‚»‚ê‚¼‚ê8Byte,4Byte
-    std::FILE* fp;
+int main(int argc, char **argv) {
+    int d, k, l, m, n; // ãƒ«ãƒ¼ãƒ—ã‚«ã‚¦ãƒ³ã‚¿ãƒ¼
+    int D, M, N, lp;   // D:æ¬¡å…ƒæ•°ï¼ŒM:ç‚¹ç¾¤Xã®ç‚¹æ•°ï¼ŒN:ç‚¹ç¾¤Yã®ç‚¹æ•°
+    char mode;         // ãƒ•ã‚¡ã‚¤ãƒ«èª­è¾¼ãƒ¢ãƒ¼ãƒ‰
+    double s, r, Np, sgmX, sgmY, *muX, *muY; // s:ã‚¹ã‚±ãƒ¼ãƒ«ï¼Œr:å¤‰å½¢ç²—ã•ï¼ŒNp:æ¨å®šç‚¹ã®æ•°ï¼ŒsgmX,sgmY:æ¨™æº–åå·®ï¼Œã‚¹ã‚±ãƒ¼ãƒ«ã®èª¿æ•´ã«ä½¿ç”¨ï¼ŒmuX,muY:å¹³å‡ãƒ™ã‚¯ãƒˆãƒ«
+    double *u, *v, *w;        // u,v:å¤‰å½¢ãƒ™ã‚¯ãƒˆãƒ«ï¼Œw:é‡ã¿
+    double **R, *t, *a, *sgm; // R:å›è»¢ãƒ™ã‚¯ãƒˆãƒ«ï¼Œt:å¹³è¡Œç§»å‹•ãƒ™ã‚¯ãƒˆãƒ«ï¼Œa:å„ç‚¹ã®å¯¾å¿œç¢ºç‡ï¼Œsgm:å„ç‚¹ã®ã‚¹ã‚±ãƒ¼ãƒ«å¤‰åŒ–
+    pwpm pm;                  // ã‚¢ãƒ«ã‚´ã®ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚’æ ¼ç´ã™ã‚‹æ§‹é€ ä½“
+    pwsz sz;                  // ã‚µã‚¤ã‚ºã‚„æ¬¡å…ƒæ•°ã‚’æ ¼ç´ã™ã‚‹æ§‹é€ ä½“
+    double *x, *y, *X, *Y, *wd, **bX, **bY; // x,y:å¤‰æ›å¾Œã®ç‚¹ç¾¤ï¼ŒX,Y:å…ƒã®ç‚¹ç¾¤ï¼Œwd:ä½œæ¥­ç”¨ãƒ‡ãƒ¼ã‚¿ã‚’æ ¼ç´ï¼ŒbX,bY:ãƒ•ã‚¡ã‚¤ãƒ«ã‹ã‚‰èª­ã¿è¾¼ã‚“ã ç”Ÿã®ç‚¹ç¾¤
+    int *wi;                                // ä½œæ¥­ç”¨ã®æ•´æ•°ãƒ‡ãƒ¼ã‚¿ã‚’æ ¼ç´
+    int sd = sizeof(double), si = sizeof(int); // sd,si:double,intå‹ã®å¤‰æ•°ãŒãƒ¡ãƒ¢ãƒªä¸Šã§å ã‚ã‚‹ã‚µã‚¤ã‚ºã‚’ãƒã‚¤ãƒˆå˜ä½ã§ä¿æŒï¼ŒåŸºæœ¬ã¯ãã‚Œãã‚Œ8Byte,4Byte
+    FILE *fp;
     char fn[256];
-    int dsz, isz; // dsz,isz:double,intŒ^‚Ìƒf[ƒ^ƒƒ‚ƒŠƒTƒCƒYEƒAƒ‹ƒS‚É•K—v‚È•‚“®¬”“_”E®”ƒf[ƒ^‚Ì‘—Ê
-    int xsz, ysz; // x,y”z—ñ‚É•K—v‚Èƒƒ‚ƒŠƒTƒCƒYC“_ŒQ‚ÌŸŒ³‚Æ“_‚Ì”A‚¨‚æ‚ÑƒAƒ‹ƒSƒŠƒYƒ€‚ÌƒIƒvƒVƒ‡ƒ“‚É‚æ‚Á‚ÄƒTƒCƒY‚ª•Ï‰»
+    int dsz, isz; // dsz,isz:double,intå‹ã®ãƒ‡ãƒ¼ã‚¿ãƒ¡ãƒ¢ãƒªã‚µã‚¤ã‚ºãƒ»ã‚¢ãƒ«ã‚´ã«å¿…è¦ãªæµ®å‹•å°æ•°ç‚¹æ•°ãƒ»æ•´æ•°ãƒ‡ãƒ¼ã‚¿ã®ç·é‡
+    int xsz, ysz; // x,yé…åˆ—ã«å¿…è¦ãªãƒ¡ãƒ¢ãƒªã‚µã‚¤ã‚ºï¼Œç‚¹ç¾¤ã®æ¬¡å…ƒã¨ç‚¹ã®æ•°ã€ãŠã‚ˆã³ã‚¢ãƒ«ã‚´ãƒªã‚ºãƒ ã®ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã«ã‚ˆã£ã¦ã‚µã‚¤ã‚ºãŒå¤‰åŒ–
     char ytraj[] = ".optpath.bin", xtraj[] = ".optpathX.bin";
-    double tt[7]; // tt:Šeˆ—‚ÌŠÔ‚ğ‹L˜^
-    LARGE_INTEGER tv[7]; // ŠÔŒv‘ª—p‚Ì•Ï”
-    int nx, ny, N0, M0 = 0; // nx,ny:ƒ^[ƒQƒbƒgEƒ\[ƒX‚Ìƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚Ì“_”CN0,M0:Œ³‚Ì“_‚Ì”
-    double rx, ry, *T, *X0, *Y0 = NULL; // rx,ry:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚Ì”ä—¦CT:•ÏŠ·Œã‚Ì“_ŒQCX0,Y0:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‘O‚Ì“_ŒQ
-    double sgmT, *muT; // sgmT:•ÏŠ·Œã‚Ì“_ŒQ‚Ì•W€•Î·CmuT:•ÏŠ·Œã‚Ì“_ŒQ‚Ì•½‹ÏƒxƒNƒgƒ‹
-    double* pf; // pf:ƒAƒ‹ƒS‚Ì«”\‚ğ‹L˜^
-    double *LQ = NULL, *LQ0 = NULL; // LQ,LQ0:ƒWƒIƒfƒWƒbƒNƒJ[ƒlƒ‹•ª‰ğ‚ÌŒ‹‰Ê‚ğŠi”[‚·‚é”z—ñ
-    int *Ux, *Uy; // Ux,Uy:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚ÉŒ³“_ŒQ‚Ì‚Ç‚Ì“_‚ªƒTƒ“ƒvƒŠƒ“ƒO‚³‚ê‚½‚©‚ğ¦‚·indexDex:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒOŒã‚Ìƒ^[ƒQƒbƒg“_ŒQ‚Ìi”Ô‚Ì“_‚ªŒ³“_ŒQ‚ÌUx[i]”Ô‚Ì“_‚É‘Î‰
-    int K; // Geodesic Kernel‚ÌŒ`ó•\Œ»‚É•K—v‚ÈŠî’êƒxƒNƒgƒ‹‚Ì”
-    int geok = 0; // geok:ƒWƒIƒfƒWƒbƒNƒJ[ƒlƒ‹‚ğg—p‚·‚é‚©‚Ç‚¤‚©‚Ìƒtƒ‰ƒO
-    double* x0; // x0:•âŠÔ‚â‚»‚Ì‘¼‚ÌŒãˆ—‚Åg—p‚³‚ê‚éC•ÏŠ·Œã‚Ì“_ŒQƒf[ƒ^‚ğŠi”[‚·‚é‚½‚ß‚Ì”z—ñ
+    double tt[7];                       // tt:å„å‡¦ç†ã®æ™‚é–“ã‚’è¨˜éŒ²
+    LARGE_INTEGER tv[7];                // æ™‚é–“è¨ˆæ¸¬ç”¨ã®å¤‰æ•°
+    int nx, ny, N0, M0 = 0;             // nx,ny:ã‚¿ãƒ¼ã‚²ãƒƒãƒˆãƒ»ã‚½ãƒ¼ã‚¹ã®ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°æ™‚ã®ç‚¹æ•°ï¼ŒN0,M0:å…ƒã®ç‚¹ã®æ•°
+    double rx, ry, *T, *X0, *Y0 = NULL; // rx,ry:ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ã®æ¯”ç‡ï¼ŒT:å¤‰æ›å¾Œã®ç‚¹ç¾¤ï¼ŒX0,Y0:ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°å‰ã®ç‚¹ç¾¤
+    double sgmT, *muT;                  // sgmT:å¤‰æ›å¾Œã®ç‚¹ç¾¤ã®æ¨™æº–åå·®ï¼ŒmuT:å¤‰æ›å¾Œã®ç‚¹ç¾¤ã®å¹³å‡ãƒ™ã‚¯ãƒˆãƒ«
+    double *pf;                         // pf:ã‚¢ãƒ«ã‚´ã®æ€§èƒ½ã‚’è¨˜éŒ²
+    double *LQ = NULL, *LQ0 = NULL; // LQ,LQ0:ã‚¸ã‚ªãƒ‡ã‚¸ãƒƒã‚¯ã‚«ãƒ¼ãƒãƒ«åˆ†è§£ã®çµæœã‚’æ ¼ç´ã™ã‚‹é…åˆ—
+    int *Ux, *Uy; // Ux,Uy:ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°æ™‚ã«å…ƒç‚¹ç¾¤indexã‚’ä¿å­˜ï¼ex:ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°å¾Œã®ã‚¿ãƒ¼ã‚²ãƒƒãƒˆç‚¹ç¾¤ã®iç•ªã®ç‚¹ãŒå…ƒç‚¹ç¾¤ã®Ux[i]ç•ªã®ç‚¹ã«å¯¾å¿œ
+    int K;        // Geodesic Kernelã®å½¢çŠ¶è¡¨ç¾ã«å¿…è¦ãªåŸºåº•ãƒ™ã‚¯ãƒˆãƒ«ã®æ•°
+    int geok = 0; // geok:ã‚¸ã‚ªãƒ‡ã‚¸ãƒƒã‚¯ã‚«ãƒ¼ãƒãƒ«ã‚’ä½¿ç”¨ã™ã‚‹ã‹ã©ã†ã‹ã®ãƒ•ãƒ©ã‚°
+    double *x0;   // x0:è£œé–“ã‚„ãã®ä»–ã®å¾Œå‡¦ç†ã§ä½¿ç”¨ã•ã‚Œã‚‹ï¼Œå¤‰æ›å¾Œã®ç‚¹ç¾¤ãƒ‡ãƒ¼ã‚¿ã‚’æ ¼ç´ã™ã‚‹ãŸã‚ã®é…åˆ—
 
     QueryPerformanceCounter(tv + 0);
     tt[0] = clock();

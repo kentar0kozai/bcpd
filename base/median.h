@@ -1,1 +1,1 @@
-double median(double* a, double* w, const int N);
+double median(double *a, double *w, const int N);

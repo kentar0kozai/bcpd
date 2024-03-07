@@ -37,41 +37,21 @@
 #define SQ(x) ((x) * (x))
 #define M_PI 3.14159265358979323846 // pi
 double digamma(double x);
-double (*kernel[4])(const double*, const double*, int,
-    double)
-    = { gauss, imquad, rational, laplace };
+double (*kernel[4])(const double *, const double *, int, double) = {gauss, imquad, rational, laplace};
 char spinner[16][16] = {
-    "-    \0",
-    "\\    \0",
-    "|    \0",
-    "/    \0",
-    "-    \0",
-    " -   \0",
-    "  -  \0",
-    "   - \0",
-    "    -\0",
-    "    \\\0",
-    "    |\0",
-    "    /\0",
-    "    -\0",
-    "   - \0",
-    "  -  \0",
-    " -   \0",
+    "-    \0", "\\    \0", "|    \0", "/    \0", "-    \0", " -   \0", "  -  \0", "   - \0",
+    "    -\0", "    \\\0", "    |\0", "    /\0", "    -\0", "   - \0", "  -  \0", " -   \0",
 };
 
-static void print_status(int lp, double Np, double sigma, double diff,
-    double conv, int opt, int J, int local)
-{
-    char* acc = (local && (opt & PW_OPT_LOCAL)) ? "KDtree " : (J ? "Nystrom" : "None   ");
+static void print_status(int lp, double Np, double sigma, double diff, double conv, int opt, int J, int local) {
+    char *acc = (local && (opt & PW_OPT_LOCAL)) ? "KDtree " : (J ? "Nystrom" : "None   ");
     if (opt & PW_OPT_QUIET)
         return;
     if (opt & PW_OPT_HISTO) {
         if (lp)
-            fprintf(stderr, "  loop=%.3d  acc.P=[%s]  sigma=%lf  diff=%lf\n", lp + 1,
-                acc, sigma, diff);
+            fprintf(stderr, "  loop=%.3d  acc.P=[%s]  sigma=%lf  diff=%lf\n", lp + 1, acc, sigma, diff);
         else
-            fprintf(stderr, "  loop=%.3d  acc.P=[%s]  sigma=%lf          \n", lp + 1,
-                acc, sigma);
+            fprintf(stderr, "  loop=%.3d  acc.P=[%s]  sigma=%lf          \n", lp + 1, acc, sigma);
     } else {
         if (lp)
             fprintf(stderr, "\033[8A");
@@ -89,38 +69,34 @@ static void print_status(int lp, double Np, double sigma, double diff,
     }
 }
 
-int bcpd(double* x, /*  O  | DM x 1 (+nlp) | aligned target shape     */
-    double* y, /*  O  | DM x 1 (+nlp) | deformed source shape    */
-    double* u, /*  O  | DM x 1        | normalized def. shape    */
-    double* v, /*  O  | DM x 1        | displacement vectors     */
-    double* w, /*  O  |  M x 1        | #matches for each m      */
-    double* a, /*  O  |  M x 1        | mixing coefficients      */
-    double* sgm, /*  O  |  M x 1        | posterior covariance     */
-    double* s, /*  O  |    1          | scale factor             */
-    double* R, /*  O  |  D x D        | rotation matrix          */
-    double* t, /*  O  |    D          | translation vector       */
-    double* r, /*  O  |    1          | residual s.d.            */
-    double* Np, /*  O  |    1          | #matched points (est'd)  */
-    double* pf, /*  O  | nlp x 3       | comp. time (r/c) & sigma */
-    double* wd, /*  W  |    *          | working memory (double)  */
-    int* wi, /*  W  |    *          | working memory (int)     */
-    const double* X, /*  I  | DN x 1        | target point set         */
-    const double* Y, /*  I  | DM x 1        | source point set         */
-    const double* LQ, /*  I  | K + M x K     | only for geodesic kernel */
-    const pwsz sz, /*  I  |               | D, M, N, K, J            */
-    const pwpm pm /*  I  |               | tuning parameters        */
-)
-{
+int bcpd(double *x,        /*  O  | DM x 1 (+nlp) | aligned target shape     */
+         double *y,        /*  O  | DM x 1 (+nlp) | deformed source shape    */
+         double *u,        /*  O  | DM x 1        | normalized def. shape    */
+         double *v,        /*  O  | DM x 1        | displacement vectors     */
+         double *w,        /*  O  |  M x 1        | #matches for each m      */
+         double *a,        /*  O  |  M x 1        | mixing coefficients      */
+         double *sgm,      /*  O  |  M x 1        | posterior covariance     */
+         double *s,        /*  O  |    1          | scale factor             */
+         double *R,        /*  O  |  D x D        | rotation matrix          */
+         double *t,        /*  O  |    D          | translation vector       */
+         double *r,        /*  O  |    1          | residual s.d.            */
+         double *Np,       /*  O  |    1          | #matched points (est'd)  */
+         double *pf,       /*  O  | nlp x 3       | comp. time (r/c) & sigma */
+         double *wd,       /*  W  |    *          | working memory (double)  */
+         int *wi,          /*  W  |    *          | working memory (int)     */
+         const double *X,  /*  I  | DN x 1        | target point set         */
+         const double *Y,  /*  I  | DM x 1        | source point set         */
+         const double *LQ, /*  I  | K + M x K     | only for geodesic kernel */
+         const pwsz sz,    /*  I  |               | D, M, N, K, J            */
+         const pwpm pm     /*  I  |               | tuning parameters        */
+) {
     double c, cc, val, val1, val2, c1, c2;
     double vol, diff, rold = 1e100, reg = 1e-20, dlt, lim;
     int flg, local;
     int mtd;
-    double *S /*KK*/, *A /*KK*/, *B /*KD*/, *E /*MD*/, *C /*MK*/, *Q /*MK*/,
-        *L /*K*/, *W /*DM*/, *G /*MM*/, *G1 /*MM*/, *G2 /*MM*/;
-    double *b /*M*/, *q /*N*/, *f /*N*/, *PX /*DM*/, *sx /*D*M*nlp*/,
-        *sy /*D*M*nlp*/, *ix /*DM*/;
-    double *xb /*D*/, *ub /*D*/, *phi /*DD*/, *psi /*DD*/, *Sxu /*DD*/, *dS /*D*/,
-        *wk /*10D*/;
+    double *S /*KK*/, *A /*KK*/, *B /*KD*/, *E /*MD*/, *C /*MK*/, *Q /*MK*/, *L /*K*/, *W /*DM*/, *G /*MM*/, *G1 /*MM*/, *G2 /*MM*/;
+    double *b /*M*/, *q /*N*/, *f /*N*/, *PX /*DM*/, *sx /*D*M*nlp*/, *sy /*D*M*nlp*/, *ix /*DM*/;
+    double *xb /*D*/, *ub /*D*/, *phi /*DD*/, *psi /*DD*/, *Sxu /*DD*/, *dS /*D*/, *wk /*10D*/;
     LARGE_INTEGER tick;
     LARGE_INTEGER freq;
     QueryPerformanceFrequency(&freq);
@@ -136,8 +112,7 @@ int bcpd(double* x, /*  O  | DM x 1 (+nlp) | aligned target shape     */
     int nlp, opt;
     int sd = 0, si = 0;
     int T = pm.opt & PW_OPT_LOCAL, db = pm.opt & PW_OPT_DBIAS;
-    double clc, cps = CLOCKS_PER_SEC, *treal = pf, *tcpu = pf + pm.nlp,
-                *rprog = pf + 2 * pm.nlp;
+    double clc, cps = CLOCKS_PER_SEC, *treal = pf, *tcpu = pf + pm.nlp, *rprog = pf + 2 * pm.nlp;
     int pflog = pm.opt & PW_OPT_PFLOG;
     /* record base time */
     if (pflog) {
@@ -294,8 +269,8 @@ int bcpd(double* x, /*  O  | DM x 1 (+nlp) | aligned target shape     */
             for (j = i; j < M; j++)
                 G[i + M * j] = G[j + M * i] = kernel[pm.G](Y + D * i, Y + D * j, D, bet);
     else if (LQ) {
-        L = (double*)LQ;
-        Q = (double*)LQ + K;
+        L = (double *)LQ;
+        Q = (double *)LQ + K;
     } else
         gramdecomp(Q, L, wdd, wdi, Y, D, M, K, bet, kernel[pm.G]);
     /* save comp. profile */
@@ -313,44 +288,43 @@ int bcpd(double* x, /*  O  | DM x 1 (+nlp) | aligned target shape     */
         /*---------------------------------------------------------------o
         |   update: x, w                                                 |
         o---------------------------------------------------------------*/
-        // Žc·•W€•Î·r‚ª‚µ‚«‚¢’lbtn‚æ‚è¬‚³‚¢ê‡Clocal‚ð^‚É‚·‚éDflg‚Í‹ÇŠÅ“K‚·‚é‚©‚Ç‚¤‚©‚Ìƒtƒ‰ƒOD
+        // æ®‹å·®æ¨™æº–åå·®rãŒã—ãã„å€¤btnã‚ˆã‚Šå°ã•ã„å ´åˆï¼Œlocalã‚’çœŸã«ã™ã‚‹ï¼Žflgã¯å±€æ‰€æœ€é©ã™ã‚‹ã‹ã©ã†ã‹ã®ãƒ•ãƒ©ã‚°ï¼Ž
         local = (*r < pm.btn);
         flg = (local && (opt & PW_OPT_LOCAL)) ? GRAM_FLAG_LOCAL : 0;
-        // c:ƒKƒEƒXƒJ[ƒlƒ‹‚Ì³‹K‰»’è”Comg:ƒAƒEƒgƒ‰ƒCƒA‚ÌŠ„‡Cvol:ƒ^[ƒQƒbƒg“_ŒQ‚Ì‘ÌÏ
+        // c:ã‚¬ã‚¦ã‚¹ã‚«ãƒ¼ãƒãƒ«ã®æ­£è¦åŒ–å®šæ•°ï¼Œomg:ã‚¢ã‚¦ãƒˆãƒ©ã‚¤ã‚¢ã®å‰²åˆï¼Œvol:ã‚¿ãƒ¼ã‚²ãƒƒãƒˆç‚¹ç¾¤ã®ä½“ç©
         c = (pow(2.0 * M_PI * SQ(*r), 0.5 * D) * omg) / (vol * (1 - omg)); /* c */
-        // b[m]:Šeƒ\[ƒX“_‚É‘Î‚·‚éd‚ÝCa[m]:¬‡ŒW”Asgm[m]:Ž–Œã‹¤•ªŽUA*s:ƒXƒP[ƒ‹ƒtƒ@ƒNƒ^[A*r:Žc·•W€•Î·
+        // b[m]:å„ã‚½ãƒ¼ã‚¹ç‚¹ã«å¯¾ã™ã‚‹é‡ã¿ï¼Œa[m]:æ··åˆä¿‚æ•°ã€sgm[m]:äº‹å¾Œå…±åˆ†æ•£ã€*s:ã‚¹ã‚±ãƒ¼ãƒ«ãƒ•ã‚¡ã‚¯ã‚¿ãƒ¼ã€*r:æ®‹å·®æ¨™æº–åå·®
         for (m = 0; m < M; m++)
             b[m] = a[m] * exp(-(D / 2) * sgm[m] * SQ((*s) / (*r)));
 
-        /*gaussprod‚ÍAƒ}ƒbƒ`ƒ“ƒO‚ÌŠmM“x‚ðŒÂ•Ê‚ÉŒvŽZ‚·‚é‚½‚ß‚ÉŽg—p‚³‚êAŠeƒ^[ƒQƒbƒg“_‚É‘Î‚·‚éƒ\[ƒX“_ŒQ‚ÌŠe“_‚Æ‚Ìƒ}ƒbƒ`ƒ“ƒOŠm—¦‚ðÚ×‚É‹‚ß‚éD*/
-        /*gaussprod_batch‚ÍAgaussprod‚Å“¾‚ç‚ê‚½î•ñid‚Ýq[n]j‚ðŠî‚ÉA•ÏŒ`‚³‚ê‚½ƒ\[ƒX“_ŒQ‚ÌˆÊ’u‚Æƒ}ƒbƒ`ƒ“ƒO”‚ðŒø—¦“I‚ÉˆêŠ‡‚ÅXV‚·‚éD*/
-        // ƒKƒEƒXÏDŠeƒ^[ƒQƒbƒg“_‚É‘Î‚·‚é³‹K‰»‚³‚ê‚½d‚Ý‚Ì‡Œvq[n]‚ðŒvŽZ‚·‚éD“_ŒQŠÔ‚Ìƒ}ƒbƒ`ƒ“ƒOŠm—¦‚ÌŒvŽZ
-        gaussprod(q, wgd, wgi, y, X, b, Ty, D, M, N, J, *r, dlt, lim,
-            flg | GRAM_FLAG_TRANS | GRAM_FLAG_BUILD); /* Kt1 */
-        // ³‹K‰»‚³‚ê‚½d‚Ýq[n]‚ÌXV
+        /*gaussprodã¯ã€ãƒžãƒƒãƒãƒ³ã‚°ã®ç¢ºä¿¡åº¦ã‚’å€‹åˆ¥ã«è¨ˆç®—ã™ã‚‹ãŸã‚ã«ä½¿ç”¨ã•ã‚Œã€å„ã‚¿ãƒ¼ã‚²ãƒƒãƒˆç‚¹ã«å¯¾ã™ã‚‹ã‚½ãƒ¼ã‚¹ç‚¹ç¾¤ã®å„ç‚¹ã¨ã®ãƒžãƒƒãƒãƒ³ã‚°ç¢ºçŽ‡ã‚’è©³ç´°ã«æ±‚ã‚ã‚‹ï¼Ž*/
+        /*gaussprod_batchã¯ã€gaussprodã§å¾—ã‚‰ã‚ŒãŸæƒ…å ±ï¼ˆé‡ã¿q[n]ï¼‰ã‚’åŸºã«ã€å¤‰å½¢ã•ã‚ŒãŸã‚½ãƒ¼ã‚¹ç‚¹ç¾¤ã®ä½ç½®ã¨ãƒžãƒƒãƒãƒ³ã‚°æ•°ã‚’åŠ¹çŽ‡çš„ã«ä¸€æ‹¬ã§æ›´æ–°ã™ã‚‹ï¼Ž*/
+        // ã‚¬ã‚¦ã‚¹ç©ï¼Žå„ã‚¿ãƒ¼ã‚²ãƒƒãƒˆç‚¹ã«å¯¾ã™ã‚‹æ­£è¦åŒ–ã•ã‚ŒãŸé‡ã¿ã®åˆè¨ˆq[n]ã‚’è¨ˆç®—ã™ã‚‹ï¼Žç‚¹ç¾¤é–“ã®ãƒžãƒƒãƒãƒ³ã‚°ç¢ºçŽ‡ã®è¨ˆç®—
+        gaussprod(q, wgd, wgi, y, X, b, Ty, D, M, N, J, *r, dlt, lim, flg | GRAM_FLAG_TRANS | GRAM_FLAG_BUILD); /* Kt1 */
+        // æ­£è¦åŒ–ã•ã‚ŒãŸé‡ã¿q[n]ã®æ›´æ–°
         for (n = 0; n < N; n++)
             q[n] = 1.0 / (q[n] + c); /* q */
-        // f[n]:Šeƒ^[ƒQƒbƒg“_‚É‘Î‚·‚éƒ}ƒbƒ`ƒ“ƒO‚ÌŠmM“x
+        // f[n]:å„ã‚¿ãƒ¼ã‚²ãƒƒãƒˆç‚¹ã«å¯¾ã™ã‚‹ãƒžãƒƒãƒãƒ³ã‚°ã®ç¢ºä¿¡åº¦
         for (n = 0; n < N; n++)
             f[n] = 1.0 - (q[n] * c); /* f */
-        // ƒKƒEƒXÏ‚ðƒoƒbƒ`ˆ—C•ÏŒ`‚³‚ê‚½ƒ\[ƒX“_ŒQPX[m + M * d]‚ÆŠeƒ\[ƒX“_‚Ìƒ}ƒbƒ`ƒ“ƒO”w[m]‚ðXV‚·‚éD
-        gaussprod_batch(w, PX, wgd, wgi, y, X, q, Tx, D, M, N, J, *r, dlt, lim,
-            flg);
+        // ã‚¬ã‚¦ã‚¹ç©ã‚’ãƒãƒƒãƒå‡¦ç†ï¼Œå¤‰å½¢ã•ã‚ŒãŸã‚½ãƒ¼ã‚¹ç‚¹ç¾¤PX[m + M *
+        // d]ã¨å„ã‚½ãƒ¼ã‚¹ç‚¹ã®ãƒžãƒƒãƒãƒ³ã‚°æ•°w[m]ã‚’æ›´æ–°ã™ã‚‹ï¼Ž
+        gaussprod_batch(w, PX, wgd, wgi, y, X, q, Tx, D, M, N, J, *r, dlt, lim, flg);
 
-        // Šeƒ\[ƒX“_‚Ìƒ}ƒbƒ`ƒ“ƒO”w[m]‚ðd‚Ýb[m]‚ÅXV‚µAÅ¬’lreg‚Æ”äŠr‚µ‚Ä’²®
+        // å„ã‚½ãƒ¼ã‚¹ç‚¹ã®ãƒžãƒƒãƒãƒ³ã‚°æ•°w[m]ã‚’é‡ã¿b[m]ã§æ›´æ–°ã—ã€æœ€å°å€¤regã¨æ¯”è¼ƒã—ã¦èª¿æ•´
         for (m = 0; m < M; m++) {
             w[m] *= b[m];
             w[m] = w[m] < reg ? reg : w[m];
         }
-        // •ÏŒ`‚³‚ê‚½ƒ\[ƒX“_ŒQPX‚ðd‚Ýb[m]‚ÅƒXƒP[ƒŠƒ“ƒO
+        // å¤‰å½¢ã•ã‚ŒãŸã‚½ãƒ¼ã‚¹ç‚¹ç¾¤PXã‚’é‡ã¿b[m]ã§ã‚¹ã‚±ãƒ¼ãƒªãƒ³ã‚°
         for (d = 0; d < D; d++)
             for (m = 0; m < M; m++)
                 PX[m + M * d] *= b[m];
-        // ƒ}ƒbƒ`ƒ“ƒO‚³‚ê‚½“_‚Ì„’è”*Np‚ðŒvŽZ
+        // ãƒžãƒƒãƒãƒ³ã‚°ã•ã‚ŒãŸç‚¹ã®æŽ¨å®šæ•°*Npã‚’è¨ˆç®—
         *Np = 0;
         for (m = 0; m < M; m++)
             *Np += w[m]; /* Np */
-        // •ÏŠ·Œã‚Ìƒ^[ƒQƒbƒgŒ`óx‚ðd‚Ý•t‚«•½‹Ï‚ÅXV
+        // å¤‰æ›å¾Œã®ã‚¿ãƒ¼ã‚²ãƒƒãƒˆå½¢çŠ¶xã‚’é‡ã¿ä»˜ãå¹³å‡ã§æ›´æ–°
         for (m = 0; m < M; m++)
             for (d = 0; d < D; d++)
                 x[d + D * m] = PX[m + M * d] / w[m]; /* x */
@@ -673,23 +647,20 @@ err07:
     printf("ERROR: Inversion of G failed at the exact update of v.\n");
     exit(EXIT_FAILURE);
 err08:
-    printf(
-        "ERROR: LU decomp for computing the determinant failed at the update of "
-        "R.\n");
+    printf("ERROR: LU decomp for computing the determinant failed at the "
+           "update of "
+           "R.\n");
     exit(EXIT_FAILURE);
 }
 
-void interpolate(double* T, const double* Y, const int N, const double* x,
-    const double* y, const double* w, const double* s,
-    const double* R, const double* t, const double* r,
-    const pwsz sz, const pwpm pm)
-{
+void interpolate(double *T, const double *Y, const int N, const double *x, const double *y, const double *w, const double *s, const double *R,
+                 const double *t, const double *r, const pwsz sz, const pwpm pm) {
     int d, i, j, k, m, n;
     int D = sz.D, K = sz.K, M = sz.M;
-    int* wi;
+    int *wi;
     double *u, *ix, *A, *B, *E, *G, *L, *Q, *W, *wd;
     char uplo = 'U';
-    int* U;
+    int *U;
     int info;
     double bet = pm.bet, lmd = pm.lmd;
     double val, cc = pm.lmd * SQ(*r / (*s));
@@ -704,9 +675,7 @@ void interpolate(double* T, const double* Y, const int N, const double* x,
     if (lmd >= 1e8) {
         for (d = 0; d < D; d++)
             for (n = 0; n < N; n++) {
-                {
-                    u[d + D * n] = Y[d + D * n];
-                }
+                { u[d + D * n] = Y[d + D * n]; }
             }
         goto skip;
     }
@@ -797,7 +766,7 @@ void interpolate(double* T, const double* Y, const int N, const double* x,
         free(L);
         free(wi);
     } else { /* direct */
-        /* coefficient: W */
+             /* coefficient: W */
         G = calloc(M * M, sd);
 #pragma omp parallel for private(j)
         for (i = 0; i < M; i++)
@@ -833,10 +802,8 @@ skip:
 }
 
 /* y: downsampled data */
-void interpolate_1nn(double* T, const double* Y, const int N, const double* v,
-    const double* y, const double* s, const double* R,
-    const double* t, const pwsz sz, const pwpm pm)
-{
+void interpolate_1nn(double *T, const double *Y, const int N, const double *v, const double *y, const double *s, const double *R, const double *t,
+                     const pwsz sz, const pwpm pm) {
     int d, i, n, *m, *bi, *Ty;
     int D = sz.D, M = sz.M;
     double *e, *U, *bd;
@@ -876,12 +843,8 @@ void interpolate_1nn(double* T, const double* Y, const int N, const double* v,
     free(Ty);
 }
 
-void interpolate_geok(double* T, const double* Y, const int N, const double* x,
-    const double* y, const double* w, const double* s,
-    const double* R, const double* t, const double* r,
-    const double* LQ, const int* U, const pwsz sz,
-    const pwpm pm)
-{
+void interpolate_geok(double *T, const double *Y, const int N, const double *x, const double *y, const double *w, const double *s, const double *R,
+                      const double *t, const double *r, const double *LQ, const int *U, const pwsz sz, const pwpm pm) {
     int d, i, j, k, m, n;
     int D = sz.D, K = sz.K, M = sz.M;
     double *u, *ix, *A, *B, *C, *S, *E, *W;
@@ -891,7 +854,7 @@ void interpolate_geok(double* T, const double* Y, const int N, const double* x,
     double val, cc;
     int sd = sizeof(double);
     const double *L = LQ, *Q = LQ + K;
-    double* Qy;
+    double *Qy;
 
     assert(K);
 
@@ -913,9 +876,7 @@ void interpolate_geok(double* T, const double* Y, const int N, const double* x,
     if (lmd >= 1e8) {
         for (d = 0; d < D; d++)
             for (n = 0; n < N; n++) {
-                {
-                    u[d + D * n] = Y[d + D * n];
-                }
+                { u[d + D * n] = Y[d + D * n]; }
             }
         goto skip;
     }
@@ -1011,9 +972,7 @@ skip:
     free(W);
 }
 
-void interpolate_x(double* x, const double* y, const double* X, int D, int M,
-    int N, const double r, pwpm pm)
-{
+void interpolate_x(double *x, const double *y, const double *X, int D, int M, int N, const double r, pwpm pm) {
     int d, k, m, K = 30;
     double e, val;
     double *p, *P;
