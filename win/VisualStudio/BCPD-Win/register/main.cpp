@@ -20,7 +20,9 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <iostream>
 #include <math.h>
+#include <new>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -114,14 +116,14 @@ void save_corresp(const char *prefix, const double *X, const double *y, const do
     // T = calloc(3 * M + 1, si); bi = calloc(6 * M, si); bd = calloc(2 * M,
     // sd); p = calloc(M, sd); l = calloc(M, si);
 
-    T = calloc((size_t)3 * M + 1, si);
-    bi = calloc((size_t)6 * M, si);
-    bd = calloc((size_t)2 * M, sd);
-    p = calloc((size_t)M, sd);
-    l = calloc((size_t)M, si);
+    T = new int[3 * M + 1]();
+    bi = new int[6 * M]();
+    bd = new double[2 * M]();
+    p = new double[M]();
+    l = new int[M]();
     if (l == NULL) {
         fprintf(stderr, "Failed to allocate memory.\n");
-        return 1;
+        return;
     }
 
     kdtree(T, bi, bd, y, D, M);
@@ -174,17 +176,17 @@ void save_corresp(const char *prefix, const double *X, const double *y, const do
     if (fpP) {
         fclose(fpP);
     }
-    free(l);
-    free(bd);
+    delete l;
+    delete bd;
     if (fpe) {
         fclose(fpc);
     }
-    free(p);
-    free(bi);
+    delete p;
+    delete bi;
     if (fpc) {
         fclose(fpe);
     }
-    free(T);
+    delete T;
     return;
 }
 
@@ -209,7 +211,8 @@ int save_optpath(const char *file, const double *sy, const double *X, pwsz sz, p
         int *L = NULL;
         b = read2d(&nl, &nc, &mode, pm.fn[FACE_Y], "NA");
         assert(nc == 3 || nc == 2);
-        L = calloc((size_t)nc * nl, si);
+        L = new int[nc * nl]();
+        ;
         if (L == NULL) {
             fprintf(stderr, "Failed to allocate memory.\n");
             return 1;
@@ -229,7 +232,7 @@ int save_optpath(const char *file, const double *sy, const double *X, pwsz sz, p
     return 0;
 }
 
-void scan_kernel(pwpm *pm, const char *arg) {
+void scan_kernel(pwpm *pm, char *arg) {
     char *p;
     if ('g' != tolower(*arg)) {
         pm->G = atoi(arg);

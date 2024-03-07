@@ -72,7 +72,7 @@ def plot_2d_views(X, T, png=0, sub=1, traj=1):
                     plt.savefig(f"Work/otw-v{d}-{i:04d}.png")
 
                 # Convert the plot to an OpenCV image and display it
-                if i == L - 1 or i % 1 == 0:  # Example: Display at the last iteration or every 10 iterations
+                if i == L - 1 or i % 10 == 0:  # Example: Display at the last iteration or every 10 iterations
                     img = plt_to_cv2(fig)
                     cv2.imshow(f"2D View {d+1}", img)
                     cv2.waitKey(1)
