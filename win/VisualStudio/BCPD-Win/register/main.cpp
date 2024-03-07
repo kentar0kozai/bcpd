@@ -24,6 +24,7 @@
 #include <ctype.h>
 #include <iostream>
 #include <math.h>
+#include <new>
 #include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,9 +33,7 @@
 #include <vector>
 #include <windows.h>
 
-#include "../../../../../libigl/include/igl/opengl/glfw/Viewer.h"
-#include "../../../../../libigl/include/igl/principal_curvature.h"
-#include "../../../../../libigl/include/igl/readPLY.h"
+extern "C" {
 #include "../../../../base/geokdecomp.h"
 #include "../../../../base/kdtree.h"
 #include "../../../../base/kernel.h"
@@ -45,13 +44,202 @@
 #include "../../../../register/bcpd.h"
 #include "../../../../register/info.h"
 #include "../../../../register/norm.h"
-// #include "getopt.h/*" /
+#include "getopt.h"
+void init_genrand64(unsigned long s);
+}
 
+#include "../../../../../libigl/include/igl/opengl/glfw/Viewer.h"
+#include "../../../../../libigl/include/igl/principal_curvature.h"
+#include "../../../../../libigl/include/igl/readPLY.h"
 #define SQ(x) ((x) * (x))
 #define M_PI 3.14159265358979323846 // pi
 
-void init_genrand64(unsigned long s);
 enum transpose { ASIS = 0, TRANSPOSE = 1 };
+
+void save_variable(const char *prefix, const char *suffix, const double *var, int D, int J, const char *fmt, int trans) {
+    int d, j;
+    char fn[256];
+    double **buf;
+    strcpy(fn, prefix);
+    strcat(fn, suffix);
+    if (trans == TRANSPOSE) {
+        buf = calloc2d(J, D);
+        for (j = 0; j < J; j++)
+            for (d = 0; d < D; d++)
+                buf[j][d] = var[d + D * j];
+        write2d(fn, (const double **)buf, J, D, fmt, "NA");
+        free2d(buf, J);
+    } else {
+        buf = calloc2d(D, J);
+        for (j = 0; j < J; j++)
+            for (d = 0; d < D; d++)
+                buf[d][j] = var[d + D * j];
+        write2d(fn, (const double **)buf, D, J, fmt, "NA");
+        free2d(buf, D);
+    }
+
+    return;
+}
+
+void save_corresp(const char *prefix, const double *X, const double *y, const double *a, const double *sgm, const double s, const double r, pwsz sz,
+                  pwpm pm) {
+    int i, m, n, D, M, N;
+    int *T, *l, *bi;
+    double *bd;
+    double *p, c, val;
+    char fnP[256], fnc[256], fne[256];
+    int S[MAXTREEDEPTH];
+    int top, ct;
+    double omg, dlt, vol, rad;
+    int si = sizeof(int), sd = sizeof(double);
+    FILE *fpP = NULL, *fpc = NULL, *fpe = NULL;
+    int db = pm.opt & PW_OPT_DBIAS;
+    double max, min;
+    int mmax;
+
+    D = sz.D;
+    M = sz.M;
+    N = sz.N;
+    omg = pm.omg;
+    dlt = pm.dlt;
+    rad = dlt * r;
+    strcpy(fnP, prefix);
+    strcat(fnP, "P.txt");
+    if (pm.opt & PW_OPT_SAVEP) {
+        fpP = fopen(fnP, "w");
+        fprintf(fpP, "[n]\t[m]\t[probability]\n");
+    }
+    strcpy(fne, prefix);
+    strcat(fne, "e.txt");
+    if (pm.opt & PW_OPT_SAVEE) {
+        fpe = fopen(fne, "w");
+        fprintf(fpe, "[n]\t[m]\t[probability]\n");
+    }
+    strcpy(fnc, prefix);
+    strcat(fnc, "c.txt");
+    if (pm.opt & PW_OPT_SAVEC) {
+        fpc = fopen(fnc, "w");
+        fprintf(fpc, "[n]\t[1/0]\n");
+    }
+
+    // T = calloc(3 * M + 1, si); bi = calloc(6 * M, si); bd = calloc(2 * M,
+    // sd); p = calloc(M, sd); l = calloc(M, si);
+
+    T = new int[3 * M + 1]();
+    bi = new int[6 * M]();
+    bd = new double[2 * M]();
+    p = new double[M]();
+    l = new int[M]();
+    if (l == NULL) {
+        fprintf(stderr, "Failed to allocate memory.\n");
+        return;
+    }
+
+    kdtree(T, bi, bd, y, D, M);
+    vol = volume(X, D, N);
+    c = (pow(2.0 * M_PI * SQ(r), 0.5 * D) * omg) / (vol * (1 - omg));
+    for (n = 0; n < N; n++) {
+        /* compute P, c, e */
+        val = c;
+        top = ct = 0;
+        do {
+            eballsearch_next(&m, S, &top, X + (size_t)D * n, rad, y, T, D, M);
+            if (m >= 0)
+                l[ct++] = m;
+        } while (top);
+        if (!ct) {
+            nnsearch(&m, &min, X + (size_t)D * n, y, T, D, M);
+            l[ct++] = m;
+        }
+        for (i = 0; i < ct; i++) {
+            m = l[i];
+            p[i] = a[m] * gauss(y + (size_t)D * m, X + (size_t)D * n, D, r) * (db ? exp(-0.5 * D * SQ(sgm[m] * s / r)) : 1.0);
+            val += p[i];
+        }
+        for (i = 0; i < ct; i++) {
+            m = l[i];
+            p[i] /= val;
+        }
+        max = c / val;
+        mmax = 0;
+        for (i = 0; i < ct; i++)
+            if (p[i] > max) {
+                max = p[i];
+                mmax = l[i] + 1;
+            }
+        /* print P, c, e */
+        if (fpP) {
+            for (i = 0; i < ct; i++)
+                if (p[i] > 1.0f / M) {
+                    m = l[i];
+                    fprintf(fpP, "%d\t%d\t%lf\n", n + 1, m + 1, p[i]);
+                }
+        }
+        if (fpe) {
+            fprintf(fpe, "%d\t%d\t%lf\n", n + 1, mmax ? mmax : l[0], mmax ? max : p[0]);
+        }
+        if (fpc) {
+            fprintf(fpc, "%d\t%d\n", n + 1, mmax ? 1 : 0);
+        }
+    }
+    if (fpP) {
+        fclose(fpP);
+    }
+    delete l;
+    delete bd;
+    if (fpe) {
+        fclose(fpc);
+    }
+    delete p;
+    delete bi;
+    if (fpc) {
+        fclose(fpe);
+    }
+    delete T;
+    return;
+}
+
+int save_optpath(const char *file, const double *sy, const double *X, pwsz sz, pwpm pm, int lp) {
+    int N = sz.N, M = sz.M, D = sz.D;
+    int si = sizeof(int), sd = sizeof(double);
+    FILE *fp = fopen(file, "wb");
+    if (!fp) {
+        printf("Can't open: %s\n", file);
+        exit(EXIT_FAILURE);
+    }
+    fwrite(&N, si, 1, fp);
+    fwrite(&D, si, 1, fp);
+    fwrite(&M, si, 1, fp);
+    fwrite(&lp, si, 1, fp);
+    fwrite(sy, sd, (size_t)lp * D * M, fp);
+    fwrite(X, sd, (size_t)D * N, fp);
+    if (strlen(pm.fn[FACE_Y])) {
+        double **b;
+        int nl, nc, l, c;
+        char mode;
+        int *L = NULL;
+        b = read2d(&nl, &nc, &mode, pm.fn[FACE_Y], "NA");
+        assert(nc == 3 || nc == 2);
+        L = new int[nc * nl]();
+        ;
+        if (L == NULL) {
+            fprintf(stderr, "Failed to allocate memory.\n");
+            return 1;
+        }
+        for (l = 0; l < nl; l++)
+            for (c = 0; c < nc; c++) {
+                L[c + nc * l] = (int)b[l][c];
+            }
+        fwrite(&nl, si, 1, fp);
+        fwrite(&nc, si, 1, fp);
+        fwrite(L, si, (size_t)nc * nl, fp);
+        free(L);
+        free(b);
+    }
+    fclose(fp);
+
+    return 0;
+}
 
 void scan_kernel(pwpm *pm, const char *arg) {
     char *p;
@@ -78,41 +266,25 @@ void scan_kernel(pwpm *pm, const char *arg) {
     }
 }
 
-void scan_dwpm(int *dwn, double *dwr, const std::vector<std::string> &opts) {
-    if (opts.empty() || opts.size() != 3) {
-        std::cout << "ERROR: The argument of '-D' must be 'char,int,real'." << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-
-    char c = opts[0][0];
-    int n = std::stoi(opts[1]);
-    double r = std::stod(opts[2]);
-
-    if (n <= 0) {
-        std::cout << "ERROR: The 2nd argument of '-D' must be positive." << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-
-    if (r < 0) {
-        std::cout << "ERROR: The 3rd argument of '-D' must be positive or 0." << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-
-    if (std::isupper(c)) {
+void scan_dwpm(int *dwn, double *dwr, const char *arg) {
+    char c;
+    int n, m;
+    double r;
+    m = sscanf(arg, "%c,%d,%lf", &c, &n, &r);
+    if (m != 3)
+        goto err01;
+    if (n <= 0)
+        goto err03;
+    if (r < 0)
+        goto err04;
+    if (isupper(c)) {
         r *= -1.0f;
     }
-
-    c = std::tolower(c);
-
-    if (c != 'x' && c != 'y' && c != 'b') {
-        std::cout << "ERROR: The 1st argument of '-D' must be one of [x,y,b,X,Y,B]." << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-
-    if (r < 0 && -r < 1e-2) {
+    c = tolower(c);
+    if (c != 'x' && c != 'y' && c != 'b')
+        goto err02;
+    if (r < 0 && -r < 1e-2)
         r = -1e-2;
-    }
-
     switch (c) {
     case 'x':
         dwn[TARGET] = n;
@@ -129,6 +301,19 @@ void scan_dwpm(int *dwn, double *dwr, const std::vector<std::string> &opts) {
         dwr[SOURCE] = r;
         break;
     }
+    return;
+err01:
+    printf("ERROR: The argument of '-D' must be 'char,int,real'. \n");
+    exit(EXIT_FAILURE);
+err02:
+    printf("ERROR: The 1st argument of '-D' must be one of [x,y,b,X,Y,B]. \n");
+    exit(EXIT_FAILURE);
+err03:
+    printf("ERROR: The 2nd argument of '-D' must be positive.     \n");
+    exit(EXIT_FAILURE);
+err04:
+    printf("ERROR: The 3rd argument of '-D' must be positive or 0.\n");
+    exit(EXIT_FAILURE);
 }
 
 void check_prms(const pwpm pm, const pwsz sz) {
@@ -222,21 +407,6 @@ void check_prms(const pwpm pm, const pwsz sz) {
     }
 }
 
-std::vector<std::string> getopt(int argc, char **argv, const std::string &optstring) {
-    std::vector<std::string> opts;
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-        if (arg[0] == '-') {
-            if (arg.length() > 1) {
-                if (optstring.find(arg[1]) != std::string::npos) {
-                    opts.push_back(arg);
-                }
-            }
-        }
-    }
-    return opts;
-}
-
 std::vector<std::string> splitString(const std::string &str, char delimiter) {
     std::vector<std::string> tokens;
     std::string token;
@@ -257,8 +427,8 @@ std::string getOptionValue(const std::vector<std::string> &opts, const std::stri
 }
 
 void pw_getopt(pwpm *pm, int argc, char **argv) {
+    int opt;
     strcpy(pm->fn[TARGET], "X.txt");
-    std::cout << pm->fn[TARGET] << std::endl;
     pm->omg = 0.0;
     pm->cnv = 1e-4;
     pm->K = 0;
@@ -288,37 +458,156 @@ void pw_getopt(pwpm *pm, int argc, char **argv) {
     pm->dwr[SOURCE] = 0.0f;
     pm->dwn[TARGET] = 0;
     pm->dwr[TARGET] = 0.0f;
-
-    std::cout << "argc: " << argc << std::endl;
-    for (int i = 0; i < argc; ++i) {
-        std::cout << "argv[" << i << "]: " << argv[i] << std::endl;
-    }
-
-    std::vector<std::string> opts = getopt(argc, argv, "X:Y:D:z:u:r:w:l:b:k:g:d:e:c:n:N:G:J:K:o:x:y:f:s:hpqvaAtWS1");
-    if (opts.empty())
-        std::cout << "No options provided." << std::endl;
-    for (const auto &op : opts) {
-        std::cout << "Option : " << op << std::endl;
-    }
-    // scan_dwpm(pm->dwn, pm->dwr, opts);
-    std::string dValue = getOptionValue(opts, "-D");
-    if (!dValue.empty()) {
-        std::cout << "Value of option 'D': " << dValue << '\n';
-        std::vector<std::string> dParams = splitString(dValue.substr(1), ',');
-        // TODO: ・ｽ・ｽ・ｽ・ｽ・ｽ・ｽ・ｽ・ｽscan_dwpm・ｽﾌ趣ｿｽ・ｽ・ｽ・ｽ・ｽ・ｽQ・ｽl・ｽﾉゑｿｽ・ｽﾄ趣ｿｽ・ｽ・ｽ・ｽ・ｽ・ｽ・ｽ
-        if (dParams.size() == 3) {
-            pm->dwn[SOURCE] = dParams[0] == "B" ? 1 : 0;
-            pm->dwr[SOURCE] = std::stof(dParams[1]);
-            pm->dwr[TARGET] = std::stof(dParams[2]);
-            std::cout << "pm->dwn[SOURCE]: " << pm->dwn[SOURCE] << '\n';
-            std::cout << "pm->dwr[SOURCE]: " << pm->dwr[SOURCE] << '\n';
-            std::cout << "pm->dwr[TARGET]: " << pm->dwr[TARGET] << '\n';
-        } else {
-            std::cout << "Invalid format for option 'D'." << '\n';
+    while ((opt = getopt(argc, argv, "X:Y:D:z:u:r:w:l:b:k:g:d:e:c:n:N:G:J:K:o:x:y:f:s:hpqvaAtWS1")) != -1) {
+        switch (opt) {
+        case 'D':
+            scan_dwpm(pm->dwn, pm->dwr, optarg);
+            break;
+        case 'G':
+            scan_kernel(pm, optarg);
+            break;
+        case 'z':
+            pm->eps = atof(optarg);
+            break;
+        case 'b':
+            pm->bet = atof(optarg);
+            break;
+        case 'w':
+            pm->omg = atof(optarg);
+            break;
+        case 'l':
+            pm->lmd = atof(optarg);
+            break;
+        case 'k':
+            pm->kpa = atof(optarg);
+            break;
+        case 'g':
+            pm->gma = atof(optarg);
+            break;
+        case 'd':
+            pm->dlt = atof(optarg);
+            break;
+        case 'e':
+            pm->lim = atof(optarg);
+            break;
+        case 'f':
+            pm->btn = atof(optarg);
+            break;
+        case 'c':
+            pm->cnv = atof(optarg);
+            break;
+        case 'n':
+            pm->nlp = atoi(optarg);
+            break;
+        case 'N':
+            pm->llp = atoi(optarg);
+            break;
+        case 'K':
+            pm->K = atoi(optarg);
+            break;
+        case 'J':
+            pm->J = atoi(optarg);
+            break;
+        case 'r':
+            pm->rns = atoi(optarg);
+            break;
+        case 'u':
+            pm->nrm = *optarg;
+            break;
+        case 'h':
+            pm->opt |= PW_OPT_HISTO;
+            break;
+        case 'a':
+            pm->opt |= PW_OPT_DBIAS;
+            break;
+        case 'p':
+            pm->opt |= PW_OPT_LOCAL;
+            break;
+        case 'q':
+            pm->opt |= PW_OPT_QUIET;
+            break;
+        case 'A':
+            pm->opt |= PW_OPT_ACCEL;
+            break;
+        case 'W':
+            pm->opt |= PW_OPT_NWARN;
+            break;
+        case 'S':
+            pm->opt |= PW_OPT_NOSIM;
+            break;
+        case '1':
+            pm->opt |= PW_OPT_1NN;
+            break;
+        case 'o':
+            strcpy(pm->fn[OUTPUT], optarg);
+            break;
+        case 'x':
+            strcpy(pm->fn[TARGET], optarg);
+            break;
+        case 'y':
+            strcpy(pm->fn[SOURCE], optarg);
+            break;
+        case 'X':
+            strcpy(pm->fn[FUNC_X], optarg);
+            break;
+        case 'Y':
+            strcpy(pm->fn[FUNC_Y], optarg);
+            break;
+        case 'v':
+            printUsage();
+            exit(EXIT_SUCCESS);
+            break;
+        case 's':
+            if (strchr(optarg, 'A'))
+                pm->opt |= PW_OPT_SAVE;
+            if (strchr(optarg, 'x'))
+                pm->opt |= PW_OPT_SAVEX;
+            if (strchr(optarg, 'y'))
+                pm->opt |= PW_OPT_SAVEY;
+            if (strchr(optarg, 'u'))
+                pm->opt |= PW_OPT_SAVEU;
+            if (strchr(optarg, 'v'))
+                pm->opt |= PW_OPT_SAVEV;
+            if (strchr(optarg, 'a'))
+                pm->opt |= PW_OPT_SAVEA;
+            if (strchr(optarg, 'c'))
+                pm->opt |= PW_OPT_SAVEC;
+            if (strchr(optarg, 'e'))
+                pm->opt |= PW_OPT_SAVEE;
+            if (strchr(optarg, 'S'))
+                pm->opt |= PW_OPT_SAVES;
+            if (strchr(optarg, 'P'))
+                pm->opt |= PW_OPT_SAVEP;
+            if (strchr(optarg, 'T'))
+                pm->opt |= PW_OPT_SAVET;
+            if (strchr(optarg, 'X'))
+                pm->opt |= PW_OPT_PATHX;
+            if (strchr(optarg, 'Y'))
+                pm->opt |= PW_OPT_PATHY;
+            if (strchr(optarg, 't'))
+                pm->opt |= PW_OPT_PFLOG;
+            if (strchr(optarg, '0'))
+                pm->opt |= PW_OPT_VTIME;
+            break;
         }
-    } else {
-        std::cout << "Option 'D' not found or has no value." << '\n';
     }
+    /* acceleration with default parameters */
+    if (pm->opt & PW_OPT_ACCEL) {
+        pm->J = 300;
+        pm->K = 70;
+        pm->opt |= PW_OPT_LOCAL;
+    }
+    /* case: save all */
+    if (pm->opt & PW_OPT_SAVE)
+        pm->opt |= PW_OPT_SAVEX | PW_OPT_SAVEU | PW_OPT_SAVEC | PW_OPT_SAVEP | PW_OPT_SAVEA | PW_OPT_PFLOG | PW_OPT_SAVEY | PW_OPT_SAVEV |
+                   PW_OPT_SAVEE | PW_OPT_SAVET | PW_OPT_SAVES | PW_OPT_PATHY;
+    /* always save y & info */
+    pm->opt |= PW_OPT_SAVEY | PW_OPT_INFO;
+    /* for numerical stability */
+    pm->omg = pm->omg == 0 ? 1e-250 : pm->omg;
+    /* llp is always less than or equal to nlp */
+    if (pm->llp > pm->nlp)
+        pm->llp = pm->nlp;
 
     return;
 }
@@ -419,13 +708,21 @@ void fprint_comptime(FILE *fp, const LARGE_INTEGER *tv, double *tt, int nx, int 
         fprintf(fp, "\n");
 }
 
+void fprint_comptime2(FILE *fp, const LARGE_INTEGER *tv, double *tt, int geok) {
+    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 2, tv + 1), (tt[2] - tt[1]) / CLOCKS_PER_SEC);
+    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 3, tv + 2), (tt[3] - tt[2]) / CLOCKS_PER_SEC);
+    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 4, tv + 3), (tt[4] - tt[3]) / CLOCKS_PER_SEC);
+    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 5, tv + 4), (tt[5] - tt[4]) / CLOCKS_PER_SEC);
+    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 1, tv + 0), tvcalc(tv + 6, tv + 5));
+}
+
 int main(int argc, char **argv) {
     int d, k, l, m, n; // ループカウンター
     int D, M, N, lp;   // D:次元数，M:点群Xの点数，N:点群Yの点数
     char mode;         // ファイル読込モード
     double s, r, Np, sgmX, sgmY, *muX, *muY; // s:スケール，r:変形粗さ，Np:推定点の数，sgmX,sgmY:標準偏差，スケールの調整に使用，muX,muY:平均ベクトル
     double *u, *v, *w;        // u,v:変形ベクトル，w:重み
-    double **R, *t, *a, *sgm; // R:回転ベクトル，t:平行移動ベクトル，a:各点の対応確率，sgm:各点のスケール変化
+    double **R, *t, *a, *sgm; // R:回転行列，t:平行移動ベクトル，a:各点の対応確率，sgm:各点のスケール変化
     pwpm pm;                  // アルゴのパラメータを格納する構造体
     pwsz sz;                  // サイズや次元数を格納する構造体
     double *x, *y, *X, *Y, *wd, **bX, **bY; // x,y:変換後の点群，X,Y:元の点群，wd:作業用データを格納，bX,bY:ファイルから読み込んだ生の点群
@@ -451,6 +748,328 @@ int main(int argc, char **argv) {
     QueryPerformanceCounter(tv + 0);
     tt[0] = clock();
 
+    /* ファイルの読み込み */
     pw_getopt(&pm, argc, argv);
-    std::cout << "Hello" << std::endl;
+    bX = read2d(&N, &D, &mode, pm.fn[TARGET], "NA");
+    X = new double[D * N]();
+    sz.D = D;
+    bY = read2d(&M, &D, &mode, pm.fn[SOURCE], "NA");
+    Y = new double[D * M]();
+
+    /* 乱数の初期化 */
+    init_genrand64(pm.rns ? pm.rns : clock());
+
+    /* 次元数の確認 */
+    if (D != sz.D) {
+        printf("ERROR: Dimensions of X and Y are incosistent. dim(X)=%d, dim(Y)=%d\n", sz.D, D);
+        exit(EXIT_FAILURE);
+    }
+    if (N <= D || M <= D) {
+        printf("ERROR: #points must be greater than dimension\n");
+        exit(EXIT_FAILURE);
+    }
+
+    /* メモリレイアウトの変更 */
+    // 1次元配列[x1, x2, x3, ..., xn, y1, y2, y3, ..., yn, z1, z2, z3, ..., zn]に変更
+    for (d = 0; d < D; d++)
+        for (n = 0; n < N; n++) {
+            X[d + D * n] = bX[n][d];
+        }
+    free2d(bX, N);
+    for (d = 0; d < D; d++)
+        for (m = 0; m < M; m++) {
+            Y[d + D * m] = bY[m][d];
+        }
+    free2d(bY, M);
+
+    /* alias: size */
+    sz.M = M;
+    sz.J = pm.J;
+    sz.N = N;
+    sz.K = pm.K;
+
+    /* check parameters */
+    check_prms(pm, sz);
+
+    /* print: paramters */
+    if (!(pm.opt & PW_OPT_QUIET))
+        printInfo(sz, pm);
+
+    /* 位置，スケールの正規化 */
+    muX = new double[D]();
+    muY = new double[D]();
+    if (!(pm.opt & PW_OPT_QUIET) && (D == 2 || D == 3))
+        print_norm(X, Y, D, N, M, 1, pm.nrm);
+    normalize_batch(X, muX, &sgmX, Y, muY, &sgmY, N, M, D, pm.nrm);
+    if (!(pm.opt & PW_OPT_QUIET) && (D == 2 || D == 3))
+        print_norm(X, Y, D, N, M, 0, pm.nrm);
+
+    /*Geodesic Kernelの計算 */
+    QueryPerformanceCounter(tv + 1);
+    tt[1] = clock();
+    // nnk:近隣の点の数を指定するパラメータ，pm.fn[FACE_Y]:メッシュの面情報を含むファイル名，pm.tau:Geodesic
+    // Kernelの計算に使用される閾値
+    geok = (pm.nnk || strlen(pm.fn[FACE_Y])) && pm.tau > 1e-5;
+    // Fast Point Set Alignment
+    if (geok && !(pm.opt & PW_OPT_QUIET))
+        fprintf(stderr, "  Executing the FPSA algorithm ... ");
+    if (geok) {
+        sgraph *sg;
+        if (pm.nnk)
+            sg = sgraph_from_points(Y, D, M, pm.nnk, pm.nnr); // 点群からスパースグラフを構築
+        else
+            sg = sgraph_from_mesh(Y, D, M, pm.fn[FACE_Y]); // メッシュからスパースグラフを構築
+        // スパースグラフ上でGeodesic Kernel分解を行い，その結果を格納する．
+        // スパースグラフのエッジ情報sg->Eと重みsg->Wを使用し、パラメータとしてpm.K（基底の数）、pm.bet、pm.tau、pm.epsを受け取る．
+        // pm.bet:変形の滑らかさや剛性を制御するパラメータ．大きいほど、より滑らかな変形が促され、小さいほど局所的な変形が許容される．
+        // pm.tau:距離の影響を制御する閾値やスケールパラメータ．小さいほど、近い点同士の関係が強調され、大きいほど遠い点同士の関係も考慮に入れられる．
+        // pm.eps:反復計算における収束判定
+        LQ = geokdecomp(&K, Y, D, M, (const int **)sg->E, (const double **)sg->W, pm.K, pm.bet, pm.tau, pm.eps);
+        sz.K = pm.K = K; /* update K */
+        sgraph_free(sg);
+        if (geok && !(pm.opt & PW_OPT_QUIET))
+            fprintf(stderr, "done. (K->%d)\n\n", K);
+    }
+
+    QueryPerformanceCounter(tv + 2);
+    tt[2] = clock();
+
+    nx = pm.dwn[TARGET];
+    rx = pm.dwr[TARGET]; // ダウンサンプリング目標点数と比率
+    ny = pm.dwn[SOURCE];
+    ry = pm.dwr[SOURCE]; // ダウンサンプリング目標点数と比率
+    if ((nx || ny) && !(pm.opt & PW_OPT_QUIET))
+        fprintf(stderr, "  Downsampling ...");
+    if (nx) {
+        X0 = X;
+        N0 = N;
+        N = sz.N = nx;
+        X = new double[D * N]();
+        Ux = new int[D * N]();
+        downsample(X, Ux, N, X0, D, N0, rx);
+    }
+    if (ny) {
+        Y0 = Y;
+        M0 = M;
+        M = sz.M = ny;
+        Y = new double[D * M]();
+        Uy = new int[D * M]();
+        downsample(Y, Uy, M, Y0, D, M0, ry);
+    }
+    if ((nx || ny) && !(pm.opt & PW_OPT_QUIET))
+        fprintf(stderr, " done. \n\n");
+    //ダウンサンプリングされた各点に対応するジオデジックカーネルの値を、新しいLQ配列に適用する．
+    if (ny && geok) {
+        LQ0 = LQ;
+        LQ = new double[K + K * M]();
+        for (k = 0; k < K; k++)
+            LQ[k] = LQ0[k];
+        for (k = 0; k < K; k++)
+            for (m = 0; m < M; m++)
+                LQ[m + M * k + K] = LQ0[Uy[m] + M0 * k + K];
+    }
+
+    QueryPerformanceCounter(tv + 3);
+    tt[3] = clock();
+
+    /* memory size */
+    memsize(&dsz, &isz, sz, pm);
+
+    /* memory size: x, y */
+    ysz = D * M;
+    ysz += D * M * ((pm.opt & PW_OPT_PATHY) ? pm.nlp : 0);
+    xsz = D * M;
+    xsz += D * M * ((pm.opt & PW_OPT_PATHX) ? pm.nlp : 0);
+
+    /* allocaltion */
+    wd = new double[dsz]();
+    x = new double[xsz]();
+    a = new double[M]();
+    u = new double[D * M]();
+    R = new double[D * D]();
+    // for (int i = 0; i < D; i++) {
+    //    R[i] = new double[D](); // 各ポインタに対してメモリを確保し、0で初期化
+    //}
+    sgm = new double[M]();
+    wi = new int[isz]();
+    y = new double[ysz]();
+    w = new double[M]();
+    v = new double[D * M]();
+    t = new double[D]();
+    pf = new double[3 * pm.nlp]();
+
+    /* main computation */
+    lp = bcpd(x, y, u, v, w, a, sgm, &s, R, t, &r, &Np, pf, wd, wi, X, Y, LQ, sz, pm);
+
+    /* interpolation */
+
+    QueryPerformanceCounter(tv + 4);
+    tt[4] = clock();
+    //
+    //    if (ny) {
+    //        if (!(pm.opt & PW_OPT_QUIET))
+    //            fprintf(stderr, "%s  Interpolating ... ", (pm.opt & PW_OPT_HISTO) ? "\n" : "");
+    //        T = new double[D * M0]();
+    //        if (pm.opt & PW_OPT_1NN)
+    //            interpolate_1nn(T, Y0, M0, v, Y, &s, R, t, sz, pm);
+    //        else if (LQ0)
+    //            interpolate_geok(T, Y0, M0, x, Y, w, &s, R, t, &r, LQ0, Uy, sz, pm);
+    //        else
+    //            interpolate(T, Y0, M0, x, Y, w, &s, R, t, &r, sz, pm);
+    //        switch (pm.nrm) {
+    //        case 'e':
+    //            sgmT = sgmX;
+    //            muT = muX;
+    //            break;
+    //        case 'x':
+    //            sgmT = sgmX;
+    //            muT = muX;
+    //            break;
+    //        case 'y':
+    //            sgmT = sgmY;
+    //            muT = muY;
+    //            break;
+    //        case 'n':
+    //            sgmT = 1.0f;
+    //            muT = NULL;
+    //            break;
+    //        default:
+    //            sgmT = sgmX;
+    //            muT = muX;
+    //        }
+    //        denormlize(T, muT, sgmT, M0, D);
+    //        if (!(pm.opt & PW_OPT_QUIET))
+    //            fprintf(stderr, "done. \n\n");
+    //        if (pm.opt & PW_OPT_INTPX) {
+    //            x0 = new double[D * M0]();
+    //            N0 = nx ? N0 : N;
+    //            interpolate_x(x0, T, X0, D, M0, N0, r, pm);
+    //            denormlize(x0, muT, sgmT, M0, D);
+    //        }
+    //    }
+    //
+    //    QueryPerformanceCounter(tv + 5);
+    //    tt[5] = clock();
+    //
+    //    /* save interpolated variables */
+    //    if (ny) {
+    //        save_variable(pm.fn[OUTPUT], "y.interpolated.txt", T, D, M0, "%lf", TRANSPOSE);
+    //        if (!(pm.opt & PW_OPT_INTPX))
+    //            goto skip;
+    //        save_variable(pm.fn[OUTPUT], "x.interpolated.txt", x0, D, M0, "%lf", TRANSPOSE);
+    //        free(x0);
+    //    skip:
+    //        free(T);
+    //    }
+    //
+    //    /* save correspondence */
+    //    if ((pm.opt & PW_OPT_SAVEP) | (pm.opt & PW_OPT_SAVEC) | (pm.opt & PW_OPT_SAVEE))
+    //        save_corresp(pm.fn[OUTPUT], X, y, a, sgm, s, r, sz, pm);
+    //
+    //    /* save trajectory */
+    //    if (pm.opt & PW_OPT_PATHX)
+    //        save_optpath(xtraj, x + (size_t)D * M, X, sz, pm, lp);
+    //    if (pm.opt & PW_OPT_PATHY)
+    //        save_optpath(ytraj, y + (size_t)D * M, X, sz, pm, lp);
+    //
+    //    /* revert normalization */
+    //    denormalize_batch(x, muX, sgmX, y, muY, sgmY, M, M, D, pm.nrm);
+    //
+    //    /* save variables */
+    //    if (pm.opt & PW_OPT_SAVEY)
+    //        save_variable(pm.fn[OUTPUT], "y.txt", y, D, M, "%lf", TRANSPOSE);
+    //    if (pm.opt & PW_OPT_SAVEX)
+    //        save_variable(pm.fn[OUTPUT], "x.txt", x, D, M, "%lf", TRANSPOSE);
+    //    if (pm.opt & PW_OPT_SAVEU)
+    //        save_variable(pm.fn[OUTPUT], "u.txt", u, D, M, "%lf", TRANSPOSE);
+    //    if (pm.opt & PW_OPT_SAVEV)
+    //        save_variable(pm.fn[OUTPUT], "v.txt", v, D, M, "%lf", TRANSPOSE);
+    //    if (pm.opt & PW_OPT_SAVEA)
+    //        save_variable(pm.fn[OUTPUT], "a.txt", a, M, 1, "%e", ASIS);
+    //    if (pm.opt & PW_OPT_SAVET) {
+    //        save_variable(pm.fn[OUTPUT], "s.txt", &s, 1, 1, "%lf", ASIS);
+    //        save_variable(pm.fn[OUTPUT], "R.txt", R, D, D, "%lf", ASIS);
+    //        save_variable(pm.fn[OUTPUT], "t.txt", t, D, 1, "%lf", ASIS);
+    //    }
+    //    if ((pm.opt & PW_OPT_SAVEU) | (pm.opt & PW_OPT_SAVEV) | (pm.opt & PW_OPT_SAVET)) {
+    //        save_variable(pm.fn[OUTPUT], "normX.txt", X, D, N, "%lf", TRANSPOSE);
+    //        save_variable(pm.fn[OUTPUT], "normY.txt", Y, D, M, "%lf", TRANSPOSE);
+    //    }
+    //    if ((pm.opt & PW_OPT_SAVES) && (pm.opt & PW_OPT_DBIAS)) {
+    //        for (m = 0; m < M; m++)
+    //            sgm[m] = sqrt(sgm[m]);
+    //        save_variable(pm.fn[OUTPUT], "Sigma.txt", sgm, M, 1, "%e", ASIS);
+    //    }
+    //    QueryPerformanceCounter(tv + 6);
+    //    tt[6] = clock();
+    //
+    //    /* output: computing time */
+    //    if (!(pm.opt & PW_OPT_QUIET))
+    //        fprint_comptime(stderr, tv, tt, nx, ny, geok);
+    //
+    //    /* save total computing time */
+    //    strcpy(fn, pm.fn[OUTPUT]);
+    //    strcat(fn, "comptime.txt");
+    //    fp = fopen(fn, "w");
+    //    if (pm.opt & PW_OPT_VTIME)
+    //        fprint_comptime2(fp, tv, tt, geok);
+    //    else
+    //        fprint_comptime(fp, tv, tt, nx, ny, geok);
+    //    fclose(fp);
+    //
+    //    /* save computing time for each loop */
+    //    if (pm.opt & PW_OPT_PFLOG) {
+    //        strcpy(fn, pm.fn[OUTPUT]);
+    //        strcat(fn, "profile_time.txt");
+    //        fp = fopen(fn, "w");
+    //#ifdef MINGW32
+    //        for (l = 0; l < lp; l++) {
+    //            fprintf(fp, "%f\n", pf[l]);
+    //        }
+    //#else
+    //        for (l = 0; l < lp; l++) {
+    //            fprintf(fp, "%f\t%f\n", pf[l], pf[l + pm.nlp]);
+    //        }
+    //#endif
+    //        fclose(fp);
+    //        strcpy(fn, pm.fn[OUTPUT]);
+    //        strcat(fn, "profile_sigma.txt");
+    //        fp = fopen(fn, "w");
+    //        for (l = 0; l < lp; l++) {
+    //            fprintf(fp, "%f\n", pf[l + 2 * pm.nlp]);
+    //        }
+    //    }
+    //
+    //    /* output info */
+    //    if (pm.opt & PW_OPT_INFO) {
+    //        strcpy(fn, pm.fn[OUTPUT]);
+    //        strcat(fn, "info.txt");
+    //        fp = fopen(fn, "w");
+    //        fprintf(fp, "loops\t%d\n", lp);
+    //        fprintf(fp, "sigma\t%lf\n", r);
+    //        fprintf(fp, "N_hat\t%lf\n", Np);
+    //        fclose(fp);
+    //    }
+    //    if ((pm.opt & PW_OPT_PATHY) && !(pm.opt & PW_OPT_QUIET))
+    //        fprintf(stderr, "  ** Search path during optimization was saved to: [%s]\n\n", ytraj);
+
+    free(x);
+    free(X);
+    free(wd);
+    free(muX);
+    free(a);
+    free(v);
+    free(sgm);
+    free(y);
+    free(Y);
+    free(wi);
+    free(muY);
+    free(u);
+    free(R);
+    free(t);
+    free(pf);
+
+    SetDllDirectory(NULL);
+
+    return 0;
 }
