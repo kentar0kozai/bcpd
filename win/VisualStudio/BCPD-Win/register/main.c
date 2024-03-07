@@ -43,15 +43,12 @@
 #define M_PI 3.14159265358979323846 // pi
 
 void init_genrand64(unsigned long s);
-enum transpose { ASIS = 0,
-    TRANSPOSE = 1 };
+enum transpose { ASIS = 0, TRANSPOSE = 1 };
 
-void save_variable(const char* prefix, const char* suffix, const double* var,
-    int D, int J, char* fmt, int trans)
-{
+void save_variable(const char *prefix, const char *suffix, const double *var, int D, int J, char *fmt, int trans) {
     int d, j;
     char fn[256];
-    double** buf;
+    double **buf;
     strcpy(fn, prefix);
     strcat(fn, suffix);
     if (trans == TRANSPOSE) {
@@ -59,27 +56,25 @@ void save_variable(const char* prefix, const char* suffix, const double* var,
         for (j = 0; j < J; j++)
             for (d = 0; d < D; d++)
                 buf[j][d] = var[d + D * j];
-        write2d(fn, (const double**)buf, J, D, fmt, "NA");
+        write2d(fn, (const double **)buf, J, D, fmt, "NA");
         free2d(buf, J);
     } else {
         buf = calloc2d(D, J);
         for (j = 0; j < J; j++)
             for (d = 0; d < D; d++)
                 buf[d][j] = var[d + D * j];
-        write2d(fn, (const double**)buf, D, J, fmt, "NA");
+        write2d(fn, (const double **)buf, D, J, fmt, "NA");
         free2d(buf, D);
     }
 
     return;
 }
 
-void save_corresp(const char* prefix, const double* X, const double* y,
-    const double* a, const double* sgm, const double s,
-    const double r, pwsz sz, pwpm pm)
-{
+void save_corresp(const char *prefix, const double *X, const double *y, const double *a, const double *sgm, const double s, const double r, pwsz sz,
+                  pwpm pm) {
     int i, m, n, D, M, N;
     int *T, *l, *bi;
-    double* bd;
+    double *bd;
     double *p, c, val;
     char fnP[256], fnc[256], fne[256];
     int S[MAXTREEDEPTH];
@@ -116,8 +111,8 @@ void save_corresp(const char* prefix, const double* X, const double* y,
         fprintf(fpc, "[n]\t[1/0]\n");
     }
 
-    // T = calloc(3 * M + 1, si); bi = calloc(6 * M, si); bd = calloc(2 * M, sd);
-    // p = calloc(M, sd); l = calloc(M, si);
+    // T = calloc(3 * M + 1, si); bi = calloc(6 * M, si); bd = calloc(2 * M,
+    // sd); p = calloc(M, sd); l = calloc(M, si);
 
     T = calloc((size_t)3 * M + 1, si);
     bi = calloc((size_t)6 * M, si);
@@ -170,8 +165,7 @@ void save_corresp(const char* prefix, const double* X, const double* y,
                 }
         }
         if (fpe) {
-            fprintf(fpe, "%d\t%d\t%lf\n", n + 1, mmax ? mmax : l[0],
-                mmax ? max : p[0]);
+            fprintf(fpe, "%d\t%d\t%lf\n", n + 1, mmax ? mmax : l[0], mmax ? max : p[0]);
         }
         if (fpc) {
             fprintf(fpc, "%d\t%d\n", n + 1, mmax ? 1 : 0);
@@ -194,12 +188,10 @@ void save_corresp(const char* prefix, const double* X, const double* y,
     return;
 }
 
-int save_optpath(const char* file, const double* sy, const double* X, pwsz sz,
-    pwpm pm, int lp)
-{
+int save_optpath(const char *file, const double *sy, const double *X, pwsz sz, pwpm pm, int lp) {
     int N = sz.N, M = sz.M, D = sz.D;
     int si = sizeof(int), sd = sizeof(double);
-    FILE* fp = fopen(file, "wb");
+    FILE *fp = fopen(file, "wb");
     if (!fp) {
         printf("Can't open: %s\n", file);
         exit(EXIT_FAILURE);
@@ -211,10 +203,10 @@ int save_optpath(const char* file, const double* sy, const double* X, pwsz sz,
     fwrite(sy, sd, (size_t)lp * D * M, fp);
     fwrite(X, sd, (size_t)D * N, fp);
     if (strlen(pm.fn[FACE_Y])) {
-        double** b;
+        double **b;
         int nl, nc, l, c;
         char mode;
-        int* L = NULL;
+        int *L = NULL;
         b = read2d(&nl, &nc, &mode, pm.fn[FACE_Y], "NA");
         assert(nc == 3 || nc == 2);
         L = calloc((size_t)nc * nl, si);
@@ -237,9 +229,8 @@ int save_optpath(const char* file, const double* sy, const double* X, pwsz sz,
     return 0;
 }
 
-void scan_kernel(pwpm* pm, const char* arg)
-{
-    char* p;
+void scan_kernel(pwpm *pm, const char *arg) {
+    char *p;
     if ('g' != tolower(*arg)) {
         pm->G = atoi(arg);
         return;
@@ -254,14 +245,13 @@ void scan_kernel(pwpm* pm, const char* arg)
     else
         sscanf(p + 1, "%lf,%d,%lf", &(pm->tau), &(pm->nnk), &(pm->nnr));
     if (pm->tau < 0 || pm->tau > 1) {
-        printf(
-            "ERROR: the 2nd argument of -G (tau) must be in range [0,1]. Abort.\n");
+        printf("ERROR: the 2nd argument of -G (tau) must be in range [0,1]. "
+               "Abort.\n");
         exit(EXIT_FAILURE);
     }
 }
 
-void scan_dwpm(int* dwn, double* dwr, const char* arg)
-{
+void scan_dwpm(int *dwn, double *dwr, const char *arg) {
     char c;
     int n, m;
     double r;
@@ -311,8 +301,7 @@ err04:
     exit(EXIT_FAILURE);
 }
 
-void check_prms(const pwpm pm, const pwsz sz)
-{
+void check_prms(const pwpm pm, const pwsz sz) {
     int M = sz.M, N = sz.N, M0 = pm.dwn[SOURCE], N0 = pm.dwn[TARGET];
     M = M0 ? M0 : M;
     N = N0 ? N0 : N;
@@ -397,15 +386,13 @@ void check_prms(const pwpm pm, const pwsz sz)
         exit(EXIT_FAILURE);
     }
     if (!strchr("exyn", pm.nrm)) {
-        printf(
-            "\n  ERROR: -u: Argument must be one of 'e', 'x', 'y' and 'n'. "
-            "Abort.\n\n");
+        printf("\n  ERROR: -u: Argument must be one of 'e', 'x', 'y' and 'n'. "
+               "Abort.\n\n");
         exit(EXIT_FAILURE);
     }
 }
 
-void pw_getopt(pwpm* pm, int argc, char** argv)
-{
+void pw_getopt(pwpm *pm, int argc, char **argv) {
     int opt;
     strcpy(pm->fn[TARGET], "X.txt");
     pm->omg = 0.0;
@@ -437,10 +424,7 @@ void pw_getopt(pwpm* pm, int argc, char** argv)
     pm->dwr[SOURCE] = 0.0f;
     pm->dwn[TARGET] = 0;
     pm->dwr[TARGET] = 0.0f;
-    while ((opt = getopt(
-                argc, argv,
-                "X:Y:D:z:u:r:w:l:b:k:g:d:e:c:n:N:G:J:K:o:x:y:f:s:hpqvaAtWS1"))
-        != -1) {
+    while ((opt = getopt(argc, argv, "X:Y:D:z:u:r:w:l:b:k:g:d:e:c:n:N:G:J:K:o:x:y:f:s:hpqvaAtWS1")) != -1) {
         switch (opt) {
         case 'D':
             scan_dwpm(pm->dwn, pm->dwr, optarg);
@@ -581,7 +565,8 @@ void pw_getopt(pwpm* pm, int argc, char** argv)
     }
     /* case: save all */
     if (pm->opt & PW_OPT_SAVE)
-        pm->opt |= PW_OPT_SAVEX | PW_OPT_SAVEU | PW_OPT_SAVEC | PW_OPT_SAVEP | PW_OPT_SAVEA | PW_OPT_PFLOG | PW_OPT_SAVEY | PW_OPT_SAVEV | PW_OPT_SAVEE | PW_OPT_SAVET | PW_OPT_SAVES | PW_OPT_PATHY;
+        pm->opt |= PW_OPT_SAVEX | PW_OPT_SAVEU | PW_OPT_SAVEC | PW_OPT_SAVEP | PW_OPT_SAVEA | PW_OPT_PFLOG | PW_OPT_SAVEY | PW_OPT_SAVEV |
+                   PW_OPT_SAVEE | PW_OPT_SAVET | PW_OPT_SAVES | PW_OPT_PATHY;
     /* always save y & info */
     pm->opt |= PW_OPT_SAVEY | PW_OPT_INFO;
     /* for numerical stability */
@@ -593,30 +578,28 @@ void pw_getopt(pwpm* pm, int argc, char** argv)
     return;
 }
 
-void memsize(int* dsz, int* isz, pwsz sz, pwpm pm)
-{
+void memsize(int *dsz, int *isz, pwsz sz, pwpm pm) {
     int M = sz.M, N = sz.N, J = sz.J, K = sz.K, D = sz.D;
     int T = pm.opt & PW_OPT_LOCAL;
     int L = M > N ? M : N, mtd = MAXTREEDEPTH;
     *isz = D;
     *dsz = 4 * M + 2 * N + D * (5 * M + N + 13 * D + 3); /* common          */
     *isz += K ? M : 0;
-    *dsz += K ? K * (2 * M + 3 * K + D + 12) : (3 * M * M); /* low-rank        */
+    *dsz += K ? K * (2 * M + 3 * K + D + 12) : (3 * M * M); /* low-rank */
     *isz += J ? (M + N) : 0;
     *dsz += J ? (D * (M + N + J) + J + J * J) : 0; /* nystrom         */
-    *dsz += J * (1 + D + 1); /* nystrom (Df=1)  */
+    *dsz += J * (1 + D + 1);                       /* nystrom (Df=1)  */
     *isz += T ? L * 6 : 0;
-    *dsz += T ? L * 2 : 0; /* kdtree (build)  */
-    *isz += T ? L * (2 + mtd) : 0; /* kdtree (search) */
+    *dsz += T ? L * 2 : 0;           /* kdtree (build)  */
+    *isz += T ? L * (2 + mtd) : 0;   /* kdtree (search) */
     *isz += T ? 2 * (3 * L + 1) : 0; /* kdtree (tree)   */
-    *dsz += M; /* function reg    */
+    *dsz += M;                       /* function reg    */
 }
 
-void print_bbox(const double* X, int D, int N)
-{
+void print_bbox(const double *X, int D, int N) {
     int d, n;
     double max, min;
-    char ch[3] = { 'x', 'y', 'z' };
+    char ch[3] = {'x', 'y', 'z'};
     for (d = 0; d < D; d++) {
         max = X[d];
         for (n = 1; n < N; n++)
@@ -624,16 +607,13 @@ void print_bbox(const double* X, int D, int N)
         min = X[d];
         for (n = 1; n < N; n++)
             min = fmin(min, X[d + D * n]);
-        fprintf(stderr, "%c=[%.2f,%.2f]%s", ch[d], min, max,
-            d == D - 1 ? "\n" : ", ");
+        fprintf(stderr, "%c=[%.2f,%.2f]%s", ch[d], min, max, d == D - 1 ? "\n" : ", ");
     }
 }
 
-void print_norm(const double* X, const double* Y, int D, int N, int M, int sw,
-    char type)
-{
+void print_norm(const double *X, const double *Y, int D, int N, int M, int sw, char type) {
     int t = 0;
-    char name[4][64] = { "for each", "using X", "using Y", "skipped" };
+    char name[4][64] = {"for each", "using X", "using Y", "skipped"};
     switch (type) {
     case 'e':
         t = 0;
@@ -661,17 +641,14 @@ void print_norm(const double* X, const double* Y, int D, int N, int M, int sw,
         fprintf(stderr, "\n");
 }
 
-double tvcalc(const LARGE_INTEGER* end, const LARGE_INTEGER* beg)
-{
+double tvcalc(const LARGE_INTEGER *end, const LARGE_INTEGER *beg) {
     LARGE_INTEGER freq;
     QueryPerformanceFrequency(&freq);
 
     return (double)(end->QuadPart - beg->QuadPart) / freq.QuadPart;
 }
 
-void fprint_comptime(FILE* fp, const LARGE_INTEGER* tv, double* tt, int nx,
-    int ny, int geok)
-{
+void fprint_comptime(FILE *fp, const LARGE_INTEGER *tv, double *tt, int nx, int ny, int geok) {
     if (fp == stderr)
         fprintf(fp, "  Computing Time:\n");
 #ifdef MINGW32
@@ -684,16 +661,12 @@ void fprint_comptime(FILE* fp, const LARGE_INTEGER* tv, double* tt, int nx,
         fprintf(fp, "    Interpolation:   %.3lf s\n", tvcalc(tv + 5, tv + 4));
 #else
     if (geok)
-        fprintf(fp, "    FPSA algorithm:  %.3lf s (real) / %.3lf s (cpu)\n",
-            tvcalc(tv + 2, tv + 1), (tt[2] - tt[1]) / CLOCKS_PER_SEC);
+        fprintf(fp, "    FPSA algorithm:  %.3lf s (real) / %.3lf s (cpu)\n", tvcalc(tv + 2, tv + 1), (tt[2] - tt[1]) / CLOCKS_PER_SEC);
     if (nx || ny)
-        fprintf(fp, "    Downsampling:    %.3lf s (real) / %.3lf s (cpu)\n",
-            tvcalc(tv + 3, tv + 2), (tt[3] - tt[2]) / CLOCKS_PER_SEC);
-    fprintf(fp, "    VB Optimization: %.3f s (real) / %.3lf s (cpu)\n",
-        tvcalc(tv + 4, tv + 3), (tt[4] - tt[3]) / CLOCKS_PER_SEC);
+        fprintf(fp, "    Downsampling:    %.3lf s (real) / %.3lf s (cpu)\n", tvcalc(tv + 3, tv + 2), (tt[3] - tt[2]) / CLOCKS_PER_SEC);
+    fprintf(fp, "    VB Optimization: %.3f s (real) / %.3lf s (cpu)\n", tvcalc(tv + 4, tv + 3), (tt[4] - tt[3]) / CLOCKS_PER_SEC);
     if (ny)
-        fprintf(fp, "    Interpolation:   %.3lf s (real) / %.3lf s (cpu)\n",
-            tvcalc(tv + 5, tv + 4), (tt[5] - tt[4]) / CLOCKS_PER_SEC);
+        fprintf(fp, "    Interpolation:   %.3lf s (real) / %.3lf s (cpu)\n", tvcalc(tv + 5, tv + 4), (tt[5] - tt[4]) / CLOCKS_PER_SEC);
 #endif
     fprintf(fp, "    File reading:    %.3lf s\n", tvcalc(tv + 1, tv + 0));
     fprintf(fp, "    File writing:    %.3lf s\n", tvcalc(tv + 6, tv + 5));
@@ -701,67 +674,47 @@ void fprint_comptime(FILE* fp, const LARGE_INTEGER* tv, double* tt, int nx,
         fprintf(fp, "\n");
 }
 
-void fprint_comptime2(FILE* fp, const struct timeval* tv, double* tt,
-    int geok)
-{
-    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 2, tv + 1),
-        (tt[2] - tt[1]) / CLOCKS_PER_SEC);
-    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 3, tv + 2),
-        (tt[3] - tt[2]) / CLOCKS_PER_SEC);
-    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 4, tv + 3),
-        (tt[4] - tt[3]) / CLOCKS_PER_SEC);
-    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 5, tv + 4),
-        (tt[5] - tt[4]) / CLOCKS_PER_SEC);
+void fprint_comptime2(FILE *fp, const struct timeval *tv, double *tt, int geok) {
+    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 2, tv + 1), (tt[2] - tt[1]) / CLOCKS_PER_SEC);
+    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 3, tv + 2), (tt[3] - tt[2]) / CLOCKS_PER_SEC);
+    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 4, tv + 3), (tt[4] - tt[3]) / CLOCKS_PER_SEC);
+    fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 5, tv + 4), (tt[5] - tt[4]) / CLOCKS_PER_SEC);
     fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 1, tv + 0), tvcalc(tv + 6, tv + 5));
 }
 
-int main(int argc, char** argv)
-{
-    int d, k, l, m, n; // ƒ‹[ƒvƒJƒEƒ“ƒ^[
-    int D, M, N, lp; // D:ŸŒ³”CM:“_ŒQX‚Ì“_”CN:“_ŒQY‚Ì“_”
-    char mode; // ƒtƒ@ƒCƒ‹“Çƒ‚[ƒh
-    double s, r, Np, sgmX, sgmY, *muX,
-        *muY; // s:ƒXƒP[ƒ‹Cr:•ÏŒ`‘e‚³CNp:„’è‚³‚ê‚é“_‚Ì”CsgmX,sgmY:•W€•Î·CƒXƒP[ƒ‹‚Ì’²®‚Ég—pCmuX,muY:•½‹ÏƒxƒNƒgƒ‹
-    double *u, *v, *w; // u,v:•ÏŒ`ƒxƒNƒgƒ‹Cw:d‚İ
-    double **R, *t, *a,
-        *sgm; // R:‰ñ“]ƒxƒNƒgƒ‹Ct:•½sˆÚ“®ƒxƒNƒgƒ‹Ca:Še“_‚Ì‘Î‰Šm—¦Csgm:Še“_‚ÌƒXƒP[ƒ‹•Ï‰»
-    pwpm pm; // ƒAƒ‹ƒS‚Ìƒpƒ‰ƒ[ƒ^‚ğŠi”[‚·‚é\‘¢‘Ì
-    pwsz sz; // ƒTƒCƒY‚âŸŒ³”‚ğŠi”[‚·‚é\‘¢‘Ì
-    double *x, *y, *X, *Y, *wd, **bX,
-        **bY; // x,y:•ÏŠ·Œã‚Ì“_ŒQCX,Y:Œ³‚Ì“_ŒQCwd:ì‹Æ—pƒf[ƒ^‚ğŠi”[CbX,bY:ƒtƒ@ƒCƒ‹‚©‚ç“Ç‚İ‚ñ‚¾¶‚Ì“_ŒQ
-    int* wi; // ì‹Æ—p‚Ì®”ƒf[ƒ^‚ğŠi”[
-    int sd = sizeof(double),
-        si = sizeof(
-            int); // sd,si:double,intŒ^‚Ì•Ï”‚ªƒƒ‚ƒŠã‚Åè‚ß‚éƒTƒCƒY‚ğƒoƒCƒg’PˆÊ‚Å•ÛCŠî–{‚Í‚»‚ê‚¼‚ê8Byte,4Byte
-    FILE* fp;
+int main(int argc, char **argv) {
+    int d, k, l, m, n; // ãƒ«ãƒ¼ãƒ—ã‚«ã‚¦ãƒ³ã‚¿ãƒ¼
+    int D, M, N, lp;   // D:æ¬¡å…ƒæ•°ï¼ŒM:ç‚¹ç¾¤Xã®ç‚¹æ•°ï¼ŒN:ç‚¹ç¾¤Yã®ç‚¹æ•°
+    char mode;         // ãƒ•ã‚¡ã‚¤ãƒ«èª­è¾¼ãƒ¢ãƒ¼ãƒ‰
+    double s, r, Np, sgmX, sgmY, *muX, *muY; // s:ã‚¹ã‚±ãƒ¼ãƒ«ï¼Œr:å¤‰å½¢ç²—ã•ï¼ŒNp:æ¨å®šç‚¹ã®æ•°ï¼ŒsgmX,sgmY:æ¨™æº–åå·®ï¼Œã‚¹ã‚±ãƒ¼ãƒ«ã®èª¿æ•´ã«ä½¿ç”¨ï¼ŒmuX,muY:å¹³å‡ãƒ™ã‚¯ãƒˆãƒ«
+    double *u, *v, *w;        // u,v:å¤‰å½¢ãƒ™ã‚¯ãƒˆãƒ«ï¼Œw:é‡ã¿
+    double **R, *t, *a, *sgm; // R:å›è»¢ãƒ™ã‚¯ãƒˆãƒ«ï¼Œt:å¹³è¡Œç§»å‹•ãƒ™ã‚¯ãƒˆãƒ«ï¼Œa:å„ç‚¹ã®å¯¾å¿œç¢ºç‡ï¼Œsgm:å„ç‚¹ã®ã‚¹ã‚±ãƒ¼ãƒ«å¤‰åŒ–
+    pwpm pm;                  // ã‚¢ãƒ«ã‚´ã®ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚’æ ¼ç´ã™ã‚‹æ§‹é€ ä½“
+    pwsz sz;                  // ã‚µã‚¤ã‚ºã‚„æ¬¡å…ƒæ•°ã‚’æ ¼ç´ã™ã‚‹æ§‹é€ ä½“
+    double *x, *y, *X, *Y, *wd, **bX, **bY; // x,y:å¤‰æ›å¾Œã®ç‚¹ç¾¤ï¼ŒX,Y:å…ƒã®ç‚¹ç¾¤ï¼Œwd:ä½œæ¥­ç”¨ãƒ‡ãƒ¼ã‚¿ã‚’æ ¼ç´ï¼ŒbX,bY:ãƒ•ã‚¡ã‚¤ãƒ«ã‹ã‚‰èª­ã¿è¾¼ã‚“ã ç”Ÿã®ç‚¹ç¾¤
+    int *wi;                                // ä½œæ¥­ç”¨ã®æ•´æ•°ãƒ‡ãƒ¼ã‚¿ã‚’æ ¼ç´
+    int sd = sizeof(double), si = sizeof(int); // sd,si:double,intå‹ã®å¤‰æ•°ãŒãƒ¡ãƒ¢ãƒªä¸Šã§å ã‚ã‚‹ã‚µã‚¤ã‚ºã‚’ãƒã‚¤ãƒˆå˜ä½ã§ä¿æŒï¼ŒåŸºæœ¬ã¯ãã‚Œãã‚Œ8Byte,4Byte
+    FILE *fp;
     char fn[256];
-    int dsz,
-        isz; // dsz,isz:double,intŒ^‚Ìƒf[ƒ^ƒƒ‚ƒŠƒTƒCƒYEƒAƒ‹ƒS‚É•K—v‚È•‚“®¬”“_”E®”ƒf[ƒ^‚Ì‘—Ê
-    int xsz,
-        ysz; // x,y”z—ñ‚É•K—v‚Èƒƒ‚ƒŠƒTƒCƒYC“_ŒQ‚ÌŸŒ³‚Æ“_‚Ì”A‚¨‚æ‚ÑƒAƒ‹ƒSƒŠƒYƒ€‚ÌƒIƒvƒVƒ‡ƒ“‚É‚æ‚Á‚ÄƒTƒCƒY‚ª•Ï‰»
+    int dsz, isz; // dsz,isz:double,intå‹ã®ãƒ‡ãƒ¼ã‚¿ãƒ¡ãƒ¢ãƒªã‚µã‚¤ã‚ºãƒ»ã‚¢ãƒ«ã‚´ã«å¿…è¦ãªæµ®å‹•å°æ•°ç‚¹æ•°ãƒ»æ•´æ•°ãƒ‡ãƒ¼ã‚¿ã®ç·é‡
+    int xsz, ysz; // x,yé…åˆ—ã«å¿…è¦ãªãƒ¡ãƒ¢ãƒªã‚µã‚¤ã‚ºï¼Œç‚¹ç¾¤ã®æ¬¡å…ƒã¨ç‚¹ã®æ•°ã€ãŠã‚ˆã³ã‚¢ãƒ«ã‚´ãƒªã‚ºãƒ ã®ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã«ã‚ˆã£ã¦ã‚µã‚¤ã‚ºãŒå¤‰åŒ–
     char *ytraj = ".optpath.bin", *xtraj = ".optpathX.bin";
-    double tt[7]; // tt:Šeˆ—‚ÌŠÔ‚ğ‹L˜^
-    LARGE_INTEGER tv[7]; // ŠÔŒv‘ª—p‚Ì•Ï”
-    int nx, ny, N0,
-        M0 = 0; // nx,ny:ƒ^[ƒQƒbƒgEƒ\[ƒX‚Ìƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚Ì“_”CN0,M0:Œ³‚Ì“_‚Ì”
-    double rx, ry, *T, *X0,
-        *Y0 = NULL; // rx,ry:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚Ì”ä—¦CT:•ÏŠ·Œã‚Ì“_ŒQCX0,Y0:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‘O‚Ì“_ŒQ
-    double sgmT,
-        *muT; // sgmT:•ÏŠ·Œã‚Ì“_ŒQ‚Ì•W€•Î·CmuT:•ÏŠ·Œã‚Ì“_ŒQ‚Ì•½‹ÏƒxƒNƒgƒ‹
-    double* pf; // pf:ƒAƒ‹ƒS‚Ì«”\‚ğ‹L˜^
-    double *LQ = NULL,
-           *LQ0 = NULL; // LQ,LQ0:ƒWƒIƒfƒWƒbƒNƒJ[ƒlƒ‹•ª‰ğ‚ÌŒ‹‰Ê‚ğŠi”[‚·‚é”z—ñ
-    int *Ux,
-        *Uy; // Ux,Uy:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚ÉŒ³“_ŒQ‚Ì‚Ç‚Ì“_‚ªƒTƒ“ƒvƒŠƒ“ƒO‚³‚ê‚½‚©‚ğ¦‚·indexDex:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒOŒã‚Ìƒ^[ƒQƒbƒg“_ŒQ‚Ìi”Ô‚Ì“_‚ªŒ³“_ŒQ‚ÌUx[i]”Ô‚Ì“_‚É‘Î‰
-    int K; // Geodesic Kernel‚ÌŒ`ó•\Œ»‚É•K—v‚ÈŠî’êƒxƒNƒgƒ‹‚Ì”
-    int geok = 0; // geok:ƒWƒIƒfƒWƒbƒNƒJ[ƒlƒ‹‚ğg—p‚·‚é‚©‚Ç‚¤‚©‚Ìƒtƒ‰ƒO
-    double*
-        x0; // x0:•âŠÔ‚â‚»‚Ì‘¼‚ÌŒãˆ—‚Åg—p‚³‚ê‚éC•ÏŠ·Œã‚Ì“_ŒQƒf[ƒ^‚ğŠi”[‚·‚é‚½‚ß‚Ì”z—ñ
+    double tt[7];                       // tt:å„å‡¦ç†ã®æ™‚é–“ã‚’è¨˜éŒ²
+    LARGE_INTEGER tv[7];                // æ™‚é–“è¨ˆæ¸¬ç”¨ã®å¤‰æ•°
+    int nx, ny, N0, M0 = 0;             // nx,ny:ã‚¿ãƒ¼ã‚²ãƒƒãƒˆãƒ»ã‚½ãƒ¼ã‚¹ã®ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°æ™‚ã®ç‚¹æ•°ï¼ŒN0,M0:å…ƒã®ç‚¹ã®æ•°
+    double rx, ry, *T, *X0, *Y0 = NULL; // rx,ry:ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ã®æ¯”ç‡ï¼ŒT:å¤‰æ›å¾Œã®ç‚¹ç¾¤ï¼ŒX0,Y0:ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°å‰ã®ç‚¹ç¾¤
+    double sgmT, *muT;                  // sgmT:å¤‰æ›å¾Œã®ç‚¹ç¾¤ã®æ¨™æº–åå·®ï¼ŒmuT:å¤‰æ›å¾Œã®ç‚¹ç¾¤ã®å¹³å‡ãƒ™ã‚¯ãƒˆãƒ«
+    double *pf;                         // pf:ã‚¢ãƒ«ã‚´ã®æ€§èƒ½ã‚’è¨˜éŒ²
+    double *LQ = NULL, *LQ0 = NULL; // LQ,LQ0:ã‚¸ã‚ªãƒ‡ã‚¸ãƒƒã‚¯ã‚«ãƒ¼ãƒãƒ«åˆ†è§£ã®çµæœã‚’æ ¼ç´ã™ã‚‹é…åˆ—
+    int *Ux, *Uy; // Ux,Uy:ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°æ™‚ã«å…ƒç‚¹ç¾¤indexã‚’ä¿å­˜ï¼ex:ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°å¾Œã®ã‚¿ãƒ¼ã‚²ãƒƒãƒˆç‚¹ç¾¤ã®iç•ªã®ç‚¹ãŒå…ƒç‚¹ç¾¤ã®Ux[i]ç•ªã®ç‚¹ã«å¯¾å¿œ
+    int K;        // Geodesic Kernelã®å½¢çŠ¶è¡¨ç¾ã«å¿…è¦ãªåŸºåº•ãƒ™ã‚¯ãƒˆãƒ«ã®æ•°
+    int geok = 0; // geok:ã‚¸ã‚ªãƒ‡ã‚¸ãƒƒã‚¯ã‚«ãƒ¼ãƒãƒ«ã‚’ä½¿ç”¨ã™ã‚‹ã‹ã©ã†ã‹ã®ãƒ•ãƒ©ã‚°
+    double *x0;   // x0:è£œé–“ã‚„ãã®ä»–ã®å¾Œå‡¦ç†ã§ä½¿ç”¨ã•ã‚Œã‚‹ï¼Œå¤‰æ›å¾Œã®ç‚¹ç¾¤ãƒ‡ãƒ¼ã‚¿ã‚’æ ¼ç´ã™ã‚‹ãŸã‚ã®é…åˆ—
 
     QueryPerformanceCounter(tv + 0);
     tt[0] = clock();
 
-    /* ƒtƒ@ƒCƒ‹‚Ì“Ç‚İ‚İ */
+    /* ãƒ•ã‚¡ã‚¤ãƒ«ã®èª­ã¿è¾¼ã¿ */
     pw_getopt(&pm, argc, argv);
     bX = read2d(&N, &D, &mode, pm.fn[TARGET], "NA");
     X = calloc((size_t)D * N, sd);
@@ -769,14 +722,12 @@ int main(int argc, char** argv)
     bY = read2d(&M, &D, &mode, pm.fn[SOURCE], "NA");
     Y = calloc((size_t)D * M, sd);
 
-    /* —”‚Ì‰Šú‰» */
+    /* ä¹±æ•°ã®åˆæœŸåŒ– */
     init_genrand64(pm.rns ? pm.rns : clock());
 
-    /* ŸŒ³”‚ÌŠm”F */
+    /* æ¬¡å…ƒæ•°ã®ç¢ºèª */
     if (D != sz.D) {
-        printf(
-            "ERROR: Dimensions of X and Y are incosistent. dim(X)=%d, dim(Y)=%d\n",
-            sz.D, D);
+        printf("ERROR: Dimensions of X and Y are incosistent. dim(X)=%d, dim(Y)=%d\n", sz.D, D);
         exit(EXIT_FAILURE);
     }
     if (N <= D || M <= D) {
@@ -784,9 +735,8 @@ int main(int argc, char** argv)
         exit(EXIT_FAILURE);
     }
 
-    /* ƒƒ‚ƒŠƒŒƒCƒAƒEƒg‚Ì•ÏX */
-    // 1ŸŒ³”z—ñ[x1, x2, x3, ..., xn, y1, y2, y3, ..., yn, z1, z2, z3, ...,
-    // zn]‚É•ÏX
+    /* ãƒ¡ãƒ¢ãƒªãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆã®å¤‰æ›´ */
+    // 1æ¬¡å…ƒé…åˆ—[x1, x2, x3, ..., xn, y1, y2, y3, ..., yn, z1, z2, z3, ..., zn]ã«å¤‰æ›´
     for (d = 0; d < D; d++)
         for (n = 0; n < N; n++) {
             X[d + D * n] = bX[n][d];
@@ -811,7 +761,7 @@ int main(int argc, char** argv)
     if (!(pm.opt & PW_OPT_QUIET))
         printInfo(sz, pm);
 
-    /* ˆÊ’uCƒXƒP[ƒ‹‚Ì³‹K‰» */
+    /* ä½ç½®ï¼Œã‚¹ã‚±ãƒ¼ãƒ«ã®æ­£è¦åŒ– */
     muX = calloc(D, sd);
     muY = calloc(D, sd);
     if (!(pm.opt & PW_OPT_QUIET) && (D == 2 || D == 3))
@@ -820,30 +770,27 @@ int main(int argc, char** argv)
     if (!(pm.opt & PW_OPT_QUIET) && (D == 2 || D == 3))
         print_norm(X, Y, D, N, M, 0, pm.nrm);
 
-    /*Geodesic Kernel‚ÌŒvZ */
+    /*Geodesic Kernelã®è¨ˆç®— */
     QueryPerformanceCounter(tv + 1);
     tt[1] = clock();
-    // nnk:‹ß—×‚Ì“_‚Ì”‚ğw’è‚·‚éƒpƒ‰ƒ[ƒ^Cpm.fn[FACE_Y]:ƒƒbƒVƒ…‚Ì–Êî•ñ‚ğŠÜ‚Şƒtƒ@ƒCƒ‹–¼Cpm.tau:Geodesic
-    // Kernel‚ÌŒvZ‚Ég—p‚³‚ê‚éè‡’l
+    // nnk:è¿‘éš£ã®ç‚¹ã®æ•°ã‚’æŒ‡å®šã™ã‚‹ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ï¼Œpm.fn[FACE_Y]:ãƒ¡ãƒƒã‚·ãƒ¥ã®é¢æƒ…å ±ã‚’å«ã‚€ãƒ•ã‚¡ã‚¤ãƒ«åï¼Œpm.tau:Geodesic
+    // Kernelã®è¨ˆç®—ã«ä½¿ç”¨ã•ã‚Œã‚‹é–¾å€¤
     geok = (pm.nnk || strlen(pm.fn[FACE_Y])) && pm.tau > 1e-5;
     // Fast Point Set Alignment
     if (geok && !(pm.opt & PW_OPT_QUIET))
         fprintf(stderr, "  Executing the FPSA algorithm ... ");
     if (geok) {
-        sgraph* sg;
+        sgraph *sg;
         if (pm.nnk)
-            sg = sgraph_from_points(Y, D, M, pm.nnk,
-                pm.nnr); // “_ŒQ‚©‚çƒXƒp[ƒXƒOƒ‰ƒt‚ğ\’z
+            sg = sgraph_from_points(Y, D, M, pm.nnk, pm.nnr); // ç‚¹ç¾¤ã‹ã‚‰ã‚¹ãƒ‘ãƒ¼ã‚¹ã‚°ãƒ©ãƒ•ã‚’æ§‹ç¯‰
         else
-            sg = sgraph_from_mesh(Y, D, M,
-                pm.fn[FACE_Y]); // ƒƒbƒVƒ…‚©‚çƒXƒp[ƒXƒOƒ‰ƒt‚ğ\’z
-        // ƒXƒp[ƒXƒOƒ‰ƒtã‚ÅGeodesic Kernel•ª‰ğ‚ğs‚¢C‚»‚ÌŒ‹‰Ê‚ğŠi”[‚·‚éD
-        // ƒXƒp[ƒXƒOƒ‰ƒt‚ÌƒGƒbƒWî•ñsg->E‚Æd‚İsg->W‚ğg—p‚µAƒpƒ‰ƒ[ƒ^‚Æ‚µ‚Äpm.KiŠî’ê‚Ì”jApm.betApm.tauApm.eps‚ğó‚¯æ‚éD
-        // pm.bet:•ÏŒ`‚ÌŠŠ‚ç‚©‚³‚â„«‚ğ§Œä‚·‚éƒpƒ‰ƒ[ƒ^D‘å‚«‚¢‚Ù‚ÇA‚æ‚èŠŠ‚ç‚©‚È•ÏŒ`‚ª‘£‚³‚êA¬‚³‚¢‚Ù‚Ç‹ÇŠ“I‚È•ÏŒ`‚ª‹–—e‚³‚ê‚éD
-        // pm.tau:‹——£‚Ì‰e‹¿‚ğ§Œä‚·‚éè‡’l‚âƒXƒP[ƒ‹ƒpƒ‰ƒ[ƒ^D¬‚³‚¢‚Ù‚ÇA‹ß‚¢“_“¯m‚ÌŠÖŒW‚ª‹­’²‚³‚êA‘å‚«‚¢‚Ù‚Ç‰“‚¢“_“¯m‚ÌŠÖŒW‚àl—¶‚É“ü‚ê‚ç‚ê‚éD
-        // pm.eps:”½•œŒvZ‚É‚¨‚¯‚éû‘©”»’è
-        LQ = geokdecomp(&K, Y, D, M, (const int**)sg->E, (const double**)sg->W,
-            pm.K, pm.bet, pm.tau, pm.eps);
+            sg = sgraph_from_mesh(Y, D, M, pm.fn[FACE_Y]); // ãƒ¡ãƒƒã‚·ãƒ¥ã‹ã‚‰ã‚¹ãƒ‘ãƒ¼ã‚¹ã‚°ãƒ©ãƒ•ã‚’æ§‹ç¯‰
+        // ã‚¹ãƒ‘ãƒ¼ã‚¹ã‚°ãƒ©ãƒ•ä¸Šã§Geodesic Kernelåˆ†è§£ã‚’è¡Œã„ï¼Œãã®çµæœã‚’æ ¼ç´ã™ã‚‹ï¼
+        // ã‚¹ãƒ‘ãƒ¼ã‚¹ã‚°ãƒ©ãƒ•ã®ã‚¨ãƒƒã‚¸æƒ…å ±sg->Eã¨é‡ã¿sg->Wã‚’ä½¿ç”¨ã—ã€ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã¨ã—ã¦pm.Kï¼ˆåŸºåº•ã®æ•°ï¼‰ã€pm.betã€pm.tauã€pm.epsã‚’å—ã‘å–ã‚‹ï¼
+        // pm.bet:å¤‰å½¢ã®æ»‘ã‚‰ã‹ã•ã‚„å‰›æ€§ã‚’åˆ¶å¾¡ã™ã‚‹ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ï¼å¤§ãã„ã»ã©ã€ã‚ˆã‚Šæ»‘ã‚‰ã‹ãªå¤‰å½¢ãŒä¿ƒã•ã‚Œã€å°ã•ã„ã»ã©å±€æ‰€çš„ãªå¤‰å½¢ãŒè¨±å®¹ã•ã‚Œã‚‹ï¼
+        // pm.tau:è·é›¢ã®å½±éŸ¿ã‚’åˆ¶å¾¡ã™ã‚‹é–¾å€¤ã‚„ã‚¹ã‚±ãƒ¼ãƒ«ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ï¼å°ã•ã„ã»ã©ã€è¿‘ã„ç‚¹åŒå£«ã®é–¢ä¿‚ãŒå¼·èª¿ã•ã‚Œã€å¤§ãã„ã»ã©é ã„ç‚¹åŒå£«ã®é–¢ä¿‚ã‚‚è€ƒæ…®ã«å…¥ã‚Œã‚‰ã‚Œã‚‹ï¼
+        // pm.eps:åå¾©è¨ˆç®—ã«ãŠã‘ã‚‹åæŸåˆ¤å®š
+        LQ = geokdecomp(&K, Y, D, M, (const int **)sg->E, (const double **)sg->W, pm.K, pm.bet, pm.tau, pm.eps);
         sz.K = pm.K = K; /* update K */
         sgraph_free(sg);
         if (geok && !(pm.opt & PW_OPT_QUIET))
@@ -854,9 +801,9 @@ int main(int argc, char** argv)
     tt[2] = clock();
 
     nx = pm.dwn[TARGET];
-    rx = pm.dwr[TARGET]; // ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO–Ú•W“_”‚Æ”ä—¦
+    rx = pm.dwr[TARGET]; // ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ç›®æ¨™ç‚¹æ•°ã¨æ¯”ç‡
     ny = pm.dwn[SOURCE];
-    ry = pm.dwr[SOURCE]; // ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO–Ú•W“_”‚Æ”ä—¦
+    ry = pm.dwr[SOURCE]; // ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ç›®æ¨™ç‚¹æ•°ã¨æ¯”ç‡
     if ((nx || ny) && !(pm.opt & PW_OPT_QUIET))
         fprintf(stderr, "  Downsampling ...");
     if (nx) {
@@ -877,7 +824,7 @@ int main(int argc, char** argv)
     }
     if ((nx || ny) && !(pm.opt & PW_OPT_QUIET))
         fprintf(stderr, " done. \n\n");
-    //ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚³‚ê‚½Še“_‚É‘Î‰‚·‚éƒWƒIƒfƒWƒbƒNƒJ[ƒlƒ‹‚Ì’l‚ğAV‚µ‚¢LQ”z—ñ‚É“K—p‚·‚éD
+    //ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ã•ã‚ŒãŸå„ç‚¹ã«å¯¾å¿œã™ã‚‹ã‚¸ã‚ªãƒ‡ã‚¸ãƒƒã‚¯ã‚«ãƒ¼ãƒãƒ«ã®å€¤ã‚’ã€æ–°ã—ã„LQé…åˆ—ã«é©ç”¨ã™ã‚‹ï¼
     if (ny && geok) {
         LQ0 = LQ;
         LQ = calloc((size_t)K + (size_t)K * M, sd);
@@ -915,8 +862,7 @@ int main(int argc, char** argv)
     pf = calloc((size_t)3 * pm.nlp, sd);
 
     /* main computation */
-    lp = bcpd(x, y, u, v, w, a, sgm, &s, R, t, &r, &Np, pf, wd, wi, X, Y, LQ, sz,
-        pm);
+    lp = bcpd(x, y, u, v, w, a, sgm, &s, R, t, &r, &Np, pf, wd, wi, X, Y, LQ, sz, pm);
 
     /* interpolation */
 
@@ -925,8 +871,7 @@ int main(int argc, char** argv)
 
     if (ny) {
         if (!(pm.opt & PW_OPT_QUIET))
-            fprintf(stderr, "%s  Interpolating ... ",
-                (pm.opt & PW_OPT_HISTO) ? "\n" : "");
+            fprintf(stderr, "%s  Interpolating ... ", (pm.opt & PW_OPT_HISTO) ? "\n" : "");
         T = calloc((size_t)D * M0, sd);
         if (pm.opt & PW_OPT_1NN)
             interpolate_1nn(T, Y0, M0, v, Y, &s, R, t, sz, pm);
@@ -971,12 +916,10 @@ int main(int argc, char** argv)
 
     /* save interpolated variables */
     if (ny) {
-        save_variable(pm.fn[OUTPUT], "y.interpolated.txt", T, D, M0, "%lf",
-            TRANSPOSE);
+        save_variable(pm.fn[OUTPUT], "y.interpolated.txt", T, D, M0, "%lf", TRANSPOSE);
         if (!(pm.opt & PW_OPT_INTPX))
             goto skip;
-        save_variable(pm.fn[OUTPUT], "x.interpolated.txt", x0, D, M0, "%lf",
-            TRANSPOSE);
+        save_variable(pm.fn[OUTPUT], "x.interpolated.txt", x0, D, M0, "%lf", TRANSPOSE);
         free(x0);
     skip:
         free(T);
@@ -1071,9 +1014,7 @@ int main(int argc, char** argv)
         fclose(fp);
     }
     if ((pm.opt & PW_OPT_PATHY) && !(pm.opt & PW_OPT_QUIET))
-        fprintf(stderr,
-            "  ** Search path during optimization was saved to: [%s]\n\n",
-            ytraj);
+        fprintf(stderr, "  ** Search path during optimization was saved to: [%s]\n\n", ytraj);
 
     free(x);
     free(X);

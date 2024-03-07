@@ -141,4 +141,7 @@
       <Filter>ヘッダー ファイル\base</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include=".clang-format" />
+  </ItemGroup>
 </Project>

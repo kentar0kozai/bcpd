@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-void shuffle(int* a, int n);
-void randperm(int* a, int n);
+void shuffle(int *a, int n);
+void randperm(int *a, int n);
 
-double volume(const double* x, int D, int N);
-double det(const double* A, const int D);
+double volume(const double *x, int D, int N);
+double det(const double *A, const int D);

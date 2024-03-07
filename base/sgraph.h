@@ -19,13 +19,13 @@
 // THE SOFTWARE.
 
 typedef struct sparse_graph {
-    int** E;
-    double** W;
-    int N;
-    int* capa;
-    int beg;
+  int **E;
+  double **W;
+  int N;
+  int *capa;
+  int beg;
 } sgraph;
 
-sgraph* sgraph_from_points(const double* Y, int D, int M, int K, double emax);
-sgraph* sgraph_from_mesh(const double* Y, int D, int M, const char* file);
-void sgraph_free(sgraph* sg);
+sgraph *sgraph_from_points(const double *Y, int D, int M, int K, double emax);
+sgraph *sgraph_from_mesh(const double *Y, int D, int M, const char *file);
+void sgraph_free(sgraph *sg);
