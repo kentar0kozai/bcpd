@@ -28,9 +28,10 @@
 #include <string>
 #include <time.h>
 #include <vector>
-#include <windows.h>
+// #include <windows.h>
 
-// #include "../../../../../libigl/include/igl/readPLY.h"
+#include "../../../../../libigl/include/igl/principal_curvature.h"
+#include "../../../../../libigl/include/igl/readPLY.h"
 #include "../../../../base/geokdecomp.h"
 #include "../../../../base/kdtree.h"
 #include "../../../../base/kernel.h"
