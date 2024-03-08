@@ -34,8 +34,8 @@
 #include "../../../../base/lapack.h"
 #include "../../../../base/misc.h"
 
+#define M_PI 3.141592653589793
 #define SQ(x) ((x) * (x))
-#define M_PI 3.14159265358979323846 // pi
 double digamma(double x);
 double (*kernel[4])(const double *, const double *, int, double) = {gauss, imquad, rational, laplace};
 char spinner[16][16] = {
@@ -90,6 +90,7 @@ int bcpd(double *x,        /*  O  | DM x 1 (+nlp) | aligned target shape     */
          const pwsz sz,    /*  I  |               | D, M, N, K, J            */
          const pwpm pm     /*  I  |               | tuning parameters        */
 ) {
+
     double c, cc, val, val1, val2, c1, c2;
     double vol, diff, rold = 1e100, reg = 1e-20, dlt, lim;
     int flg, local;
@@ -297,8 +298,8 @@ int bcpd(double *x,        /*  O  | DM x 1 (+nlp) | aligned target shape     */
         for (m = 0; m < M; m++)
             b[m] = a[m] * exp(-(D / 2) * sgm[m] * SQ((*s) / (*r)));
 
-        /*gaussprodは、マッチングの確信度を個別に計算するために使用され、各ターゲット点に対するソース点群の各点とのマッチング確率を詳細に求める．*/
-        /*gaussprod_batchは、gaussprodで得られた情報（重みq[n]）を基に、変形されたソース点群の位置とマッチング数を効率的に一括で更新する．*/
+        // gaussprodは、マッチングの確信度を個別に計算するために使用され、各ターゲット点に対するソース点群の各点とのマッチング確率を詳細に求める.
+        // gaussprod_batchは、gaussprodで得られた情報（重みq[n]）を基に、変形されたソース点群の位置とマッチング数を効率的に一括で更新する．
         // ガウス積．各ターゲット点に対する正規化された重みの合計q[n]を計算する．点群間のマッチング確率の計算
         gaussprod(q, wgd, wgi, y, X, b, Ty, D, M, N, J, *r, dlt, lim, flg | GRAM_FLAG_TRANS | GRAM_FLAG_BUILD); /* Kt1 */
         // 正規化された重みq[n]の更新
@@ -307,11 +308,10 @@ int bcpd(double *x,        /*  O  | DM x 1 (+nlp) | aligned target shape     */
         // f[n]:各ターゲット点に対するマッチングの確信度
         for (n = 0; n < N; n++)
             f[n] = 1.0 - (q[n] * c); /* f */
-        // ガウス積をバッチ処理，変形されたソース点群PX[m + M *
-        // d]と各ソース点のマッチング数w[m]を更新する．
+        // ガウス積をバッチ処理，変形されたソース点群PX[m + M * d]と各ソース点のマッチング数w[m]を更新する．
         gaussprod_batch(w, PX, wgd, wgi, y, X, q, Tx, D, M, N, J, *r, dlt, lim, flg);
 
-        // 各ソース点のマッチング数w[m]を重みb[m]で更新し、最小値regと比較して調整
+        // 各ソース点のマッチング数w[m] を重みb[m] で更新し、最小値regと比較して調整
         for (m = 0; m < M; m++) {
             w[m] *= b[m];
             w[m] = w[m] < reg ? reg : w[m];
@@ -582,8 +582,8 @@ int bcpd(double *x,        /*  O  | DM x 1 (+nlp) | aligned target shape     */
                 y[d + D * m] = (*s) * val + t[d];
             }
         /*---------------------------------------------------------------o
-    |   update: residual                                             |
-    o---------------------------------------------------------------*/
+        |   update: residual                                             |
+        o---------------------------------------------------------------*/
         rold = *r;
         *r = 0;
         if (db)
@@ -627,8 +627,7 @@ int bcpd(double *x,        /*  O  | DM x 1 (+nlp) | aligned target shape     */
     return lp;
 
 err02:
-    printf("ERROR: The Cholesky factorization of A failed at the update of v. "
-           "Retry.\n");
+    printf("ERROR: The Cholesky factorization of A failed at the update of v. Retry.\n");
     exit(EXIT_FAILURE);
 err03:
     printf("ERROR: Solving linear equations AX=B failed at the update of v.\n");
@@ -640,21 +639,19 @@ err05:
     printf("ERROR: Np became negative. Abort.\n");
     exit(EXIT_FAILURE);
 err06:
-    printf("ERROR: The Cholesky factorization of G failed at the update of v. "
-           "Retry.\n");
+    printf("ERROR: The Cholesky factorization of G failed at the update of v. Retry.\n");
     exit(EXIT_FAILURE);
 err07:
     printf("ERROR: Inversion of G failed at the exact update of v.\n");
     exit(EXIT_FAILURE);
 err08:
-    printf("ERROR: LU decomp for computing the determinant failed at the "
-           "update of "
-           "R.\n");
+    printf("ERROR: LU decomp for computing the determinant failed at the update of R.\n");
     exit(EXIT_FAILURE);
 }
 
 void interpolate(double *T, const double *Y, const int N, const double *x, const double *y, const double *w, const double *s, const double *R,
                  const double *t, const double *r, const pwsz sz, const pwpm pm) {
+
     int d, i, j, k, m, n;
     int D = sz.D, K = sz.K, M = sz.M;
     int *wi;
@@ -766,7 +763,7 @@ void interpolate(double *T, const double *Y, const int N, const double *x, const
         free(L);
         free(wi);
     } else { /* direct */
-             /* coefficient: W */
+        /* coefficient: W */
         G = calloc(M * M, sd);
 #pragma omp parallel for private(j)
         for (i = 0; i < M; i++)
@@ -774,7 +771,7 @@ void interpolate(double *T, const double *Y, const int N, const double *x, const
                 G[i + M * j] = G[j + M * i] = kernel[pm.G](y + D * i, y + D * j, D, bet) + (i == j ? cc / w[i] : 0);
         dposv_(&uplo, &M, &D, G, &M, W, &M, &info);
         assert(!info);
-        /* interpolation */
+/* interpolation */
 #pragma omp parallel for private(d) private(m) private(val)
         for (n = 0; n < N; n++)
             for (d = 0; d < D; d++) {
@@ -804,6 +801,7 @@ skip:
 /* y: downsampled data */
 void interpolate_1nn(double *T, const double *Y, const int N, const double *v, const double *y, const double *s, const double *R, const double *t,
                      const pwsz sz, const pwpm pm) {
+
     int d, i, n, *m, *bi, *Ty;
     int D = sz.D, M = sz.M;
     double *e, *U, *bd;
@@ -819,7 +817,7 @@ void interpolate_1nn(double *T, const double *Y, const int N, const double *v, c
     Ty = calloc(3 * M + 1, si);
     /* kdtree */
     kdtree(Ty, bi, bd, y, D, M);
-    /* 1nn */
+/* 1nn */
 #pragma omp parallel for
     for (n = 0; n < N; n++)
         nnsearch(m + n, e + n, Y + D * n, y, Ty, D, M);
@@ -845,6 +843,7 @@ void interpolate_1nn(double *T, const double *Y, const int N, const double *v, c
 
 void interpolate_geok(double *T, const double *Y, const int N, const double *x, const double *y, const double *w, const double *s, const double *R,
                       const double *t, const double *r, const double *LQ, const int *U, const pwsz sz, const pwpm pm) {
+
     int d, i, j, k, m, n;
     int D = sz.D, K = sz.K, M = sz.M;
     double *u, *ix, *A, *B, *C, *S, *E, *W;
@@ -986,8 +985,7 @@ void interpolate_x(double *x, const double *y, const double *X, int D, int M, in
     T = kdtree_build(X, D, N);
     Q = calloc(M * (K + 1), si);
 
-    //#pragma omp parallel for private (q) private (p) private (d) private (e)
-    // private (k)
+    //#pragma omp parallel for private (q) private (p) private (d) private (e) private (k)
     for (m = 0; m < M; m++) {
         q = Q + (K + 1) * m;
         p = P + (K + 1) * m;

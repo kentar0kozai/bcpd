@@ -1,3 +1,3 @@
-loops	67
-sigma	0.051027
-N_hat	1937.220302
+loops	70
+sigma	0.051252
+N_hat	1942.103304
