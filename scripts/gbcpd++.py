@@ -1,8 +1,6 @@
 import os
 import subprocess
 
-import numpy as np
-
 # パスの設定
 current_dir = os.getcwd()
 x_file = os.path.join(current_dir, '../data/armadillo-g-y.txt')
