@@ -39,12 +39,6 @@
     <ClCompile Include="..\..\..\base\geokdecomp.c">
       <Filter>ソース ファイル\base</Filter>
     </ClCompile>
-    <ClCompile Include="register\bcpd.c">
-      <Filter>ソース ファイル\register</Filter>
-    </ClCompile>
-    <ClCompile Include="register\getopt.c">
-      <Filter>ソース ファイル\register</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\base\gramdecomp.c">
       <Filter>ソース ファイル\base</Filter>
     </ClCompile>
@@ -84,14 +78,20 @@
     <ClCompile Include="..\..\..\base\util.c">
       <Filter>ソース ファイル\base</Filter>
     </ClCompile>
+    <ClCompile Include="register\pch.cpp">
+      <Filter>ソース ファイル\register</Filter>
+    </ClCompile>
+    <ClCompile Include="register\bcpd-util.c">
+      <Filter>ソース ファイル\register</Filter>
+    </ClCompile>
+    <ClCompile Include="register\getopt.c">
+      <Filter>ソース ファイル\register</Filter>
+    </ClCompile>
+    <ClCompile Include="register\bcpd.cpp">
+      <Filter>ソース ファイル\register</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\register\bcpd.h">
-      <Filter>ヘッダー ファイル\register</Filter>
-    </ClInclude>
-    <ClInclude Include="register\getopt.h">
-      <Filter>ヘッダー ファイル\register</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\register\info.h">
       <Filter>ヘッダー ファイル\register</Filter>
     </ClInclude>
@@ -139,6 +139,18 @@
     </ClInclude>
     <ClInclude Include="..\..\..\base\util.h">
       <Filter>ヘッダー ファイル\base</Filter>
+    </ClInclude>
+    <ClInclude Include="register\pch.h">
+      <Filter>ヘッダー ファイル\register</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\register\bcpd-util.h">
+      <Filter>ヘッダー ファイル\register</Filter>
+    </ClInclude>
+    <ClInclude Include="register\getopt.h">
+      <Filter>ヘッダー ファイル\register</Filter>
+    </ClInclude>
+    <ClInclude Include="register\bcpd.h">
+      <Filter>ヘッダー ファイル\register</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

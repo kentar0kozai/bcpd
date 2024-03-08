@@ -142,6 +142,8 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DisableSpecificWarnings>6031;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <AdditionalIncludeDirectories>D:\eigen-3.4.0;D:\libigl\include;D:\glad\include;D:\glfw3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -153,25 +155,69 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\base\digamma.c" />
-    <ClCompile Include="..\..\..\base\dijkstra.c" />
-    <ClCompile Include="..\..\..\base\gaussprod.c" />
-    <ClCompile Include="..\..\..\base\geokdecomp.c" />
-    <ClCompile Include="..\..\..\base\gramdecomp.c" />
-    <ClCompile Include="..\..\..\base\heap.c" />
-    <ClCompile Include="..\..\..\base\kdtree.c" />
-    <ClCompile Include="..\..\..\base\kernel.c" />
-    <ClCompile Include="..\..\..\base\median.c" />
-    <ClCompile Include="..\..\..\base\misc.c" />
-    <ClCompile Include="..\..\..\base\mt19937-64.c" />
-    <ClCompile Include="..\..\..\base\sampling.c" />
-    <ClCompile Include="..\..\..\base\sgraph.c" />
-    <ClCompile Include="..\..\..\base\util.c" />
-    <ClCompile Include="..\..\..\register\info.c" />
-    <ClCompile Include="..\..\..\register\norm.c" />
-    <ClCompile Include="register\bcpd.c" />
-    <ClCompile Include="register\getopt.c" />
-    <ClCompile Include="register\main.cpp" />
+    <ClCompile Include="..\..\..\base\digamma.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\dijkstra.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\gaussprod.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\geokdecomp.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\gramdecomp.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\heap.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\kdtree.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\kernel.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\median.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\misc.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\mt19937-64.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\sampling.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\sgraph.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\base\util.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\register\info.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\..\register\norm.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="register\bcpd-util.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="register\getopt.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="register\main.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="register\pch.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="register\bcpd.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\base\dijkstra.h" />
@@ -187,11 +233,13 @@
     <ClInclude Include="..\..\..\base\sampling.h" />
     <ClInclude Include="..\..\..\base\sgraph.h" />
     <ClInclude Include="..\..\..\base\util.h" />
-    <ClInclude Include="..\..\..\register\bcpd.h" />
+    <ClInclude Include="..\..\..\register\bcpd-util.h" />
     <ClInclude Include="..\..\..\register\info.h" />
     <ClInclude Include="..\..\..\register\norm.h" />
     <ClInclude Include="..\..\..\register\version.h" />
     <ClInclude Include="register\getopt.h" />
+    <ClInclude Include="register\pch.h" />
+    <ClInclude Include="register\bcpd.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".clang-format" />
