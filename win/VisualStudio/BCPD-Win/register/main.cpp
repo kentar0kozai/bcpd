@@ -23,9 +23,47 @@ extern "C" {
 #include "../../../../base/geokdecomp.h"
 }
 
+void convertToFormat(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F,
+                     int &D,     // 次元数
+                     int &M,     // 面の数
+                     double *&Y, // 点群データ（1次元配列）
+                     int **&mesh // メッシュ情報
+) {
+    int N = V.rows(); // 頂点の数
+    D = V.cols();     // 次元数を格納
+    M = F.rows();     // 面の数を格納
+
+    // 点群データの整形
+    Y = new double[D * N];
+    for (int d = 0; d < D; ++d) {
+        for (int n = 0; n < N; ++n) {
+            Y[d + D * n] = V(n, d);
+        }
+    }
+
+    // メッシュ情報の整形
+    mesh = new int *[M];
+    for (int m = 0; m < M; ++m) {
+        mesh[m] = new int[3];         // 三角形メッシュを想定
+        for (int d = 0; d < 3; ++d) { // 三角形の各頂点
+            mesh[m][d] = F(m, d);
+        }
+    }
+
+    // この時点で、D, M, Y, meshに関数の結果が格納されている
+}
+
+void freeMesh(int **&mesh, int M) {
+    for (int i = 0; i < M; ++i) {
+        delete[] mesh[i];
+    }
+    delete[] mesh;
+    mesh = nullptr;
+}
+
 int main(int argc, char **argv) {
     int d, k, l, m, n; // ループカウンター
-    int D, M, N, lp;   // D:次元数，M:点群Xの点数，N:点群Yの点数
+    int D, M, N, lp;   // D:次元数，N:点群Xの点数，M:点群Yの点数
     char mode;         // ファイル読込モード
     double s, r, Np, sgmX, sgmY, *muX, *muY; // s:スケール，r:変形粗さ，Np:推定点の数，sgmX,sgmY:標準偏差，スケールの調整に使用，muX,muY:平均ベクトル
     double *u, *v, *w;       // u,v:変形ベクトル，w:重み
@@ -88,6 +126,21 @@ int main(int argc, char **argv) {
             Y[d + D * m] = bY[m][d];
         }
     free2d(bY, M);
+
+    Eigen::MatrixXd YV; // 頂点座標を格納する行列
+    Eigen::MatrixXi YF; // メッシュの面情報を格納する行列
+    int **mesh;
+
+    //// if (!igl::readPLY(pm.fn[SOURCE], YV, YF)) {
+    // if (!igl::readPLY("../data/armadillo_mesh.ply", YV, YF)) {
+    //    std::cerr << "Failed to read SOURCE PLY file." << std::endl;
+    //    exit(EXIT_FAILURE);
+    //}
+
+    // convertToFormat(YV, YF, D, M, Y, mesh);
+
+    printf("%d------------------------", D);
+    printf("%d------------------------", M);
 
     /* alias: size */
     sz.M = M;
@@ -372,6 +425,7 @@ int main(int argc, char **argv) {
     free(R);
     free(t);
     free(pf);
+    freeMesh(mesh, M);
 
     SetDllDirectory(NULL);
 
