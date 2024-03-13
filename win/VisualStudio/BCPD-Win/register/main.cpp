@@ -19,54 +19,153 @@
 // THE SOFTWARE.
 
 #include "bcpd.h"
+#include <igl/opengl/glfw/Viewer.h>
+#include <igl/principal_curvature.h>
+#include <igl/readPLY.h>
+#include <igl/rgb_to_hsv.h>
+#include <stdarg.h>
+#include <stdlib.h>
 extern "C" {
 #include "../../../../base/geokdecomp.h"
 }
 
+void free_all(void *ptr, ...) {
+    va_list args;
+    va_start(args, ptr);
+
+    while (ptr != NULL) {
+        free(ptr);
+        ptr = va_arg(args, void *);
+    }
+
+    va_end(args);
+}
+
+bool loadModel(const char *path, int *numOfPts, int *dim, Eigen::MatrixXd &verts, Eigen::MatrixXi &faces, bool debug) {
+    // ‚Æ‚è‚ ‚¦‚¸PLYÀ‘•
+    // TODO: OBJ, Other format
+    std::string path_str = std::string(path);
+    bool success = false;
+    success = igl::readPLY(path_str, verts, faces);
+    if (debug) {
+        std::cout << "number of mesh.V is " << verts.rows() << '\n';
+        std::cout << "number of mesh.F is " << faces.rows() << '\n';
+        std::cout << "dimension of mesh.V is " << verts.cols() << '\n';
+        std::cout << "dimension of mesh.F is " << faces.cols() << '\n';
+    }
+    return success;
+}
+
+struct CurvatureInfo {
+    Eigen::MatrixXd PD1; // Principal curvature direction 1
+    Eigen::MatrixXd PD2; // Principal curvature direction 2
+    Eigen::VectorXd PV1; // Principal curvature value 1
+    Eigen::VectorXd PV2; // Principal curvature value 2
+    Eigen::VectorXd Curv;
+};
+
+void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, CurvatureInfo &curvature, const std::string method) {
+    // Gaussian curvature, Mean curvature and so on represent local properties of a surface, so use them for different purposes
+    // Mean Curvature : (> 0) = “Ê-plane, ( = 0) = plane or saddle, (< 0) : ‰š-plane
+    // Gaussian Curvature : (>0) = dome-like, ( = 0) = plane, (< 0 ) = : saddle
+    igl::principal_curvature(verts, faces, curvature.PD1, curvature.PD2, curvature.PV1, curvature.PV2);
+    Eigen::MatrixXd H;
+    if (method == "gaussian") {
+        H = curvature.PD1 * curvature.PD2;
+    } else if (method == "mean") {
+        H = curvature.PD1 + curvature.PD2;
+    } else {
+        std::cerr << "Error : No such that method.\n";
+    }
+
+    if (H.size() > 0) {
+        curvature.Curv = (H.array() - H.minCoeff()) / (H.maxCoeff() - H.minCoeff());
+    }
+}
+
+void visualizeModel(const Eigen::MatrixXd verts, const Eigen::MatrixXi &faces, const Eigen::MatrixXd &feats) {
+    igl::opengl::glfw::Viewer viewer;
+    viewer.data().set_mesh(verts, faces);
+    if (feats.size() > 0) {
+        igl::ColorMapType cmap = igl::COLOR_MAP_TYPE_JET;
+        viewer.data().set_data(feats, cmap);
+    }
+    viewer.launch();
+}
+
 int main(int argc, char **argv) {
-    int d, k, l, m, n; // ãƒ«ãƒ¼ãƒ—ã‚«ã‚¦ãƒ³ã‚¿ãƒ¼
-    int D, M, N, lp;   // D:æ¬¡å…ƒæ•°ï¼ŒM:ç‚¹ç¾¤Xã®ç‚¹æ•°ï¼ŒN:ç‚¹ç¾¤Yã®ç‚¹æ•°
-    char mode;         // ãƒ•ã‚¡ã‚¤ãƒ«èª­è¾¼ãƒ¢ãƒ¼ãƒ‰
-    double s, r, Np, sgmX, sgmY, *muX, *muY; // s:ã‚¹ã‚±ãƒ¼ãƒ«ï¼Œr:å¤‰å½¢ç²—ã•ï¼ŒNp:æ¨å®šç‚¹ã®æ•°ï¼ŒsgmX,sgmY:æ¨™æº–åå·®ï¼Œã‚¹ã‚±ãƒ¼ãƒ«ã®èª¿æ•´ã«ä½¿ç”¨ï¼ŒmuX,muY:å¹³å‡ãƒ™ã‚¯ãƒˆãƒ«
-    double *u, *v, *w;       // u,v:å¤‰å½¢ãƒ™ã‚¯ãƒˆãƒ«ï¼Œw:é‡ã¿
-    double *R, *t, *a, *sgm; // R:å›è»¢ãƒ™ã‚¯ãƒˆãƒ«ï¼Œt:å¹³è¡Œç§»å‹•ãƒ™ã‚¯ãƒˆãƒ«ï¼Œa:å„ç‚¹ã®å¯¾å¿œç¢ºç‡ï¼Œsgm:å„ç‚¹ã®ã‚¹ã‚±ãƒ¼ãƒ«å¤‰åŒ–
-    pwpm pm;                 // ã‚¢ãƒ«ã‚´ã®ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã‚’æ ¼ç´ã™ã‚‹æ§‹é€ ä½“
-    pwsz sz;                 // ã‚µã‚¤ã‚ºã‚„æ¬¡å…ƒæ•°ã‚’æ ¼ç´ã™ã‚‹æ§‹é€ ä½“
-    double *x, *y, *X, *Y, *wd, **bX, **bY; // x,y:å¤‰æ›å¾Œã®ç‚¹ç¾¤ï¼ŒX,Y:å…ƒã®ç‚¹ç¾¤ï¼Œwd:ä½œæ¥­ç”¨ãƒ‡ãƒ¼ã‚¿ã‚’æ ¼ç´ï¼ŒbX,bY:ãƒ•ã‚¡ã‚¤ãƒ«ã‹ã‚‰èª­ã¿è¾¼ã‚“ã ç”Ÿã®ç‚¹ç¾¤
-    int *wi;                                // ä½œæ¥­ç”¨ã®æ•´æ•°ãƒ‡ãƒ¼ã‚¿ã‚’æ ¼ç´
-    int sd = sizeof(double), si = sizeof(int); // sd,si:double,intå‹ã®å¤‰æ•°ãŒãƒ¡ãƒ¢ãƒªä¸Šã§å ã‚ã‚‹ã‚µã‚¤ã‚ºã‚’ãƒã‚¤ãƒˆå˜ä½ã§ä¿æŒï¼ŒåŸºæœ¬ã¯ãã‚Œãã‚Œ8Byte,4Byte
+    int d, k, l, m, n; // ƒ‹[ƒvƒJƒEƒ“ƒ^[
+    int D, M, N, lp;   // D:ŸŒ³”CM:“_ŒQX‚Ì“_”CN:“_ŒQY‚Ì“_”
+    char mode;         // ƒtƒ@ƒCƒ‹“Çƒ‚[ƒh
+    double s, r, Np, sgmX, sgmY, *muX, *muY; // s:ƒXƒP[ƒ‹Cr:•ÏŒ`‘e‚³CNp:„’è“_‚Ì”CsgmX,sgmY:•W€•Î·CƒXƒP[ƒ‹‚Ì’²®‚Ég—pCmuX,muY:•½‹ÏƒxƒNƒgƒ‹
+    double *u, *v, *w;       // u,v:•ÏŒ`ƒxƒNƒgƒ‹Cw:d‚İ
+    double *R, *t, *a, *sgm; // R:‰ñ“]ƒxƒNƒgƒ‹Ct:•½sˆÚ“®ƒxƒNƒgƒ‹Ca:Še“_‚Ì‘Î‰Šm—¦Csgm:Še“_‚ÌƒXƒP[ƒ‹•Ï‰»
+    pwpm pm;                 // ƒAƒ‹ƒS‚Ìƒpƒ‰ƒ[ƒ^‚ğŠi”[‚·‚é\‘¢‘Ì
+    pwsz sz;                 // ƒTƒCƒY‚âŸŒ³”‚ğŠi”[‚·‚é\‘¢‘Ì
+    double *x, *y, *X, *Y, *wd, **bX, **bY; // x,y:•ÏŠ·Œã‚Ì“_ŒQCX,Y:Œ³‚Ì“_ŒQCwd:ì‹Æ—pƒf[ƒ^‚ğŠi”[CbX,bY:ƒtƒ@ƒCƒ‹‚©‚ç“Ç‚İ‚ñ‚¾¶‚Ì“_ŒQ
+    int *wi;                                // ì‹Æ—p‚Ì®”ƒf[ƒ^‚ğŠi”[
+    int sd = sizeof(double), si = sizeof(int); // sd,si:double,intŒ^‚Ì•Ï”‚ªƒƒ‚ƒŠã‚Åè‚ß‚éƒTƒCƒY‚ğƒoƒCƒg’PˆÊ‚Å•ÛCŠî–{‚Í‚»‚ê‚¼‚ê8Byte,4Byte
     FILE *fp;
     char fn[256];
-    int dsz, isz; // dsz,isz:double,intå‹ã®ãƒ‡ãƒ¼ã‚¿ãƒ¡ãƒ¢ãƒªã‚µã‚¤ã‚ºãƒ»ã‚¢ãƒ«ã‚´ã«å¿…è¦ãªæµ®å‹•å°æ•°ç‚¹æ•°ãƒ»æ•´æ•°ãƒ‡ãƒ¼ã‚¿ã®ç·é‡
-    int xsz, ysz; // x,yé…åˆ—ã«å¿…è¦ãªãƒ¡ãƒ¢ãƒªã‚µã‚¤ã‚ºï¼Œç‚¹ç¾¤ã®æ¬¡å…ƒã¨ç‚¹ã®æ•°ã€ãŠã‚ˆã³ã‚¢ãƒ«ã‚´ãƒªã‚ºãƒ ã®ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã«ã‚ˆã£ã¦ã‚µã‚¤ã‚ºãŒå¤‰åŒ–
+    int dsz, isz; // dsz,isz:double,intŒ^‚Ìƒf[ƒ^ƒƒ‚ƒŠƒTƒCƒYEƒAƒ‹ƒS‚É•K—v‚È•‚“®¬”“_”E®”ƒf[ƒ^‚Ì‘—Ê
+    int xsz, ysz; // x,y”z—ñ‚É•K—v‚Èƒƒ‚ƒŠƒTƒCƒYC“_ŒQ‚ÌŸŒ³‚Æ“_‚Ì”A‚¨‚æ‚ÑƒAƒ‹ƒSƒŠƒYƒ€‚ÌƒIƒvƒVƒ‡ƒ“‚É‚æ‚Á‚ÄƒTƒCƒY‚ª•Ï‰»
     const char *ytraj = ".optpath.bin", *xtraj = ".optpathX.bin";
-    double tt[7];                       // tt:å„å‡¦ç†ã®æ™‚é–“ã‚’è¨˜éŒ²
-    LARGE_INTEGER tv[7];                // æ™‚é–“è¨ˆæ¸¬ç”¨ã®å¤‰æ•°
-    int nx, ny, N0, M0 = 0;             // nx,ny:ã‚¿ãƒ¼ã‚²ãƒƒãƒˆãƒ»ã‚½ãƒ¼ã‚¹ã®ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°æ™‚ã®ç‚¹æ•°ï¼ŒN0,M0:å…ƒã®ç‚¹ã®æ•°
-    double rx, ry, *T, *X0, *Y0 = NULL; // rx,ry:ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ã®æ¯”ç‡ï¼ŒT:å¤‰æ›å¾Œã®ç‚¹ç¾¤ï¼ŒX0,Y0:ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°å‰ã®ç‚¹ç¾¤
-    double sgmT, *muT;                  // sgmT:å¤‰æ›å¾Œã®ç‚¹ç¾¤ã®æ¨™æº–åå·®ï¼ŒmuT:å¤‰æ›å¾Œã®ç‚¹ç¾¤ã®å¹³å‡ãƒ™ã‚¯ãƒˆãƒ«
-    double *pf;                         // pf:ã‚¢ãƒ«ã‚´ã®æ€§èƒ½ã‚’è¨˜éŒ²
-    double *LQ = NULL, *LQ0 = NULL; // LQ,LQ0:ã‚¸ã‚ªãƒ‡ã‚¸ãƒƒã‚¯ã‚«ãƒ¼ãƒãƒ«åˆ†è§£ã®çµæœã‚’æ ¼ç´ã™ã‚‹é…åˆ—
-    int *Ux, *Uy; // Ux,Uy:ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°æ™‚ã«å…ƒç‚¹ç¾¤indexã‚’ä¿å­˜ï¼ex:ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°å¾Œã®ã‚¿ãƒ¼ã‚²ãƒƒãƒˆç‚¹ç¾¤ã®iç•ªã®ç‚¹ãŒå…ƒç‚¹ç¾¤ã®Ux[i]ç•ªã®ç‚¹ã«å¯¾å¿œ
-    int K;        // Geodesic Kernelã®å½¢çŠ¶è¡¨ç¾ã«å¿…è¦ãªåŸºåº•ãƒ™ã‚¯ãƒˆãƒ«ã®æ•°
-    int geok = 0; // geok:ã‚¸ã‚ªãƒ‡ã‚¸ãƒƒã‚¯ã‚«ãƒ¼ãƒãƒ«ã‚’ä½¿ç”¨ã™ã‚‹ã‹ã©ã†ã‹ã®ãƒ•ãƒ©ã‚°
-    double *x0;   // x0:è£œé–“ã‚„ãã®ä»–ã®å¾Œå‡¦ç†ã§ä½¿ç”¨ã•ã‚Œã‚‹ï¼Œå¤‰æ›å¾Œã®ç‚¹ç¾¤ãƒ‡ãƒ¼ã‚¿ã‚’æ ¼ç´ã™ã‚‹ãŸã‚ã®é…åˆ—
+    double tt[7];                       // tt:Šeˆ—‚ÌŠÔ‚ğ‹L˜^
+    LARGE_INTEGER tv[7];                // ŠÔŒv‘ª—p‚Ì•Ï”
+    int nx, ny, N0, M0 = 0;             // nx,ny:ƒ^[ƒQƒbƒgEƒ\[ƒX‚Ìƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚Ì“_”CN0,M0:Œ³‚Ì“_‚Ì”
+    double rx, ry, *T, *X0, *Y0 = NULL; // rx,ry:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚Ì”ä—¦CT:•ÏŠ·Œã‚Ì“_ŒQCX0,Y0:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‘O‚Ì“_ŒQ
+    double sgmT, *muT;                  // sgmT:•ÏŠ·Œã‚Ì“_ŒQ‚Ì•W€•Î·CmuT:•ÏŠ·Œã‚Ì“_ŒQ‚Ì•½‹ÏƒxƒNƒgƒ‹
+    double *pf;                         // pf:ƒAƒ‹ƒS‚Ì«”\‚ğ‹L˜^
+    double *LQ = NULL, *LQ0 = NULL; // LQ,LQ0:ƒWƒIƒfƒWƒbƒNƒJ[ƒlƒ‹•ª‰ğ‚ÌŒ‹‰Ê‚ğŠi”[‚·‚é”z—ñ
+    int *Ux, *Uy; // Ux,Uy:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚ÉŒ³“_ŒQindex‚ğ•Û‘¶Dex:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒOŒã‚Ìƒ^[ƒQƒbƒg“_ŒQ‚Ìi”Ô‚Ì“_‚ªŒ³“_ŒQ‚ÌUx[i]”Ô‚Ì“_‚É‘Î‰
+    int K;        // Geodesic Kernel‚ÌŒ`ó•\Œ»‚É•K—v‚ÈŠî’êƒxƒNƒgƒ‹‚Ì”
+    int geok = 0; // geok:ƒWƒIƒfƒWƒbƒNƒJ[ƒlƒ‹‚ğg—p‚·‚é‚©‚Ç‚¤‚©‚Ìƒtƒ‰ƒO
+    double *x0;   // x0:•âŠÔ‚â‚»‚Ì‘¼‚ÌŒãˆ—‚Åg—p‚³‚ê‚éC•ÏŠ·Œã‚Ì“_ŒQƒf[ƒ^‚ğŠi”[‚·‚é‚½‚ß‚Ì”z—ñ
+
+    /* ƒtƒ@ƒCƒ‹‚Ì“Ç‚İ‚İ */
+    pw_getopt(&pm, argc, argv);
+
+    // Eigen::MatrixXd V; // Verticies
+    // Eigen::MatrixXi F; // Triangles
+    // bool success = false;
+    // success = loadModel(pm.fn[SOURCE], &N, &D, V, F, true);
+    // CurvatureInfo curv_info;
+    // std::string curv_method = "gaussian";
+    // calculatePrincipalCurvature(V, F, curv_info, curv_method);
+    //// visualizeModel(V, F, curv_info.Curv);
+    // visualizeModel(V, F, curv_info.PD1 * curv_info.PD2);
 
     QueryPerformanceCounter(tv + 0);
     tt[0] = clock();
 
-    /* ãƒ•ã‚¡ã‚¤ãƒ«ã®èª­ã¿è¾¼ã¿ */
-    pw_getopt(&pm, argc, argv);
-    bX = read2d(&N, &D, &mode, pm.fn[TARGET], "NA");
-    X = static_cast<double *>(calloc((size_t)D * N, sd));
-    sz.D = D;
-    bY = read2d(&M, &D, &mode, pm.fn[SOURCE], "NA");
-    Y = static_cast<double *>(calloc((size_t)D * M, sd));
+    // bX = read2d(&N, &D, &mode, pm.fn[TARGET], "NA");
+    // X = static_cast<double *>(calloc((size_t)D * N, sd));
+    // sz.D = D;
+    // bY = read2d(&M, &D, &mode, pm.fn[SOURCE], "NA");
+    // Y = static_cast<double *>(calloc((size_t)D * M, sd));
 
-    /* ä¹±æ•°ã®åˆæœŸåŒ– */
+    /* ƒƒbƒVƒ…‚Ì“Ç‚İ‚İ */
+    Eigen::MatrixXd X_verts, Y_verts;
+    Eigen::MatrixXi X_faces, Y_faces;
+    CurvatureInfo X_Curv, Y_Curv;
+    std::string curv_method = "gaussian";
+    bool success = false;
+    success = loadModel(pm.fn[SOURCE], &M, &D, Y_verts, Y_faces, true);
+    if (!success) {
+        throw std::runtime_error("Failed to load source model.");
+    }
+    success = loadModel(pm.fn[TARGET], &N, &D, X_verts, X_faces, true);
+    if (!success) {
+        throw std::runtime_error("Failed to load target model.");
+    }
+    calculatePrincipalCurvature(Y_verts, Y_faces, Y_Curv, curv_method);
+    calculatePrincipalCurvature(X_verts, X_faces, X_Curv, curv_method);
+    // visualizeModel(Y_verts, Y_faces, Y_Curv.Curv);
+
+    /* —”‚Ì‰Šú‰» */
     init_genrand64(pm.rns ? pm.rns : clock());
 
-    /* æ¬¡å…ƒæ•°ã®ç¢ºèª */
+    /* ŸŒ³”‚ÌŠm”F */
     if (D != sz.D) {
         printf("ERROR: Dimensions of X and Y are incosistent. dim(X)=%d, dim(Y)=%d\n", sz.D, D);
         exit(EXIT_FAILURE);
@@ -76,8 +175,8 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    /* ãƒ¡ãƒ¢ãƒªãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆã®å¤‰æ›´ */
-    // 1æ¬¡å…ƒé…åˆ—[x1, x2, x3, ..., xn, y1, y2, y3, ..., yn, z1, z2, z3, ..., zn]ã«å¤‰æ›´
+    /* ƒƒ‚ƒŠƒŒƒCƒAƒEƒg‚Ì•ÏX */
+    // 1ŸŒ³”z—ñ[x1, x2, x3, ..., xn, y1, y2, y3, ..., yn, z1, z2, z3, ..., zn]‚É•ÏX
     for (d = 0; d < D; d++)
         for (n = 0; n < N; n++) {
             X[d + D * n] = bX[n][d];
@@ -102,7 +201,7 @@ int main(int argc, char **argv) {
     if (!(pm.opt & PW_OPT_QUIET))
         printInfo(sz, pm);
 
-    /* ä½ç½®ï¼Œã‚¹ã‚±ãƒ¼ãƒ«ã®æ­£è¦åŒ– */
+    /* ˆÊ’uCƒXƒP[ƒ‹‚Ì³‹K‰» */
     muX = static_cast<double *>(calloc(D, sd));
     muY = static_cast<double *>(calloc(D, sd));
     if (!(pm.opt & PW_OPT_QUIET) && (D == 2 || D == 3))
@@ -111,11 +210,11 @@ int main(int argc, char **argv) {
     if (!(pm.opt & PW_OPT_QUIET) && (D == 2 || D == 3))
         print_norm(X, Y, D, N, M, 0, pm.nrm);
 
-    /*Geodesic Kernelã®è¨ˆç®— */
+    /*Geodesic Kernel‚ÌŒvZ */
     QueryPerformanceCounter(tv + 1);
     tt[1] = clock();
-    // nnk:è¿‘éš£ã®ç‚¹ã®æ•°ã‚’æŒ‡å®šã™ã‚‹ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ï¼Œpm.fn[FACE_Y]:ãƒ¡ãƒƒã‚·ãƒ¥ã®é¢æƒ…å ±ã‚’å«ã‚€ãƒ•ã‚¡ã‚¤ãƒ«åï¼Œpm.tau:Geodesic
-    // Kernelã®è¨ˆç®—ã«ä½¿ç”¨ã•ã‚Œã‚‹é–¾å€¤
+    // nnk:‹ß—×‚Ì“_‚Ì”‚ğw’è‚·‚éƒpƒ‰ƒ[ƒ^Cpm.fn[FACE_Y]:ƒƒbƒVƒ…‚Ì–Êî•ñ‚ğŠÜ‚Şƒtƒ@ƒCƒ‹–¼Cpm.tau:Geodesic
+    // Kernel‚ÌŒvZ‚Ég—p‚³‚ê‚éè‡’l
     geok = (pm.nnk || strlen(pm.fn[FACE_Y])) && pm.tau > 1e-5;
     // Fast Point Set Alignment
     if (geok && !(pm.opt & PW_OPT_QUIET))
@@ -123,14 +222,14 @@ int main(int argc, char **argv) {
     if (geok) {
         sgraph *sg;
         if (pm.nnk)
-            sg = sgraph_from_points(Y, D, M, pm.nnk, pm.nnr); // ç‚¹ç¾¤ã‹ã‚‰ã‚¹ãƒ‘ãƒ¼ã‚¹ã‚°ãƒ©ãƒ•ã‚’æ§‹ç¯‰
+            sg = sgraph_from_points(Y, D, M, pm.nnk, pm.nnr); // “_ŒQ‚©‚çƒXƒp[ƒXƒOƒ‰ƒt‚ğ\’z
         else
-            sg = sgraph_from_mesh(Y, D, M, pm.fn[FACE_Y]); // ãƒ¡ãƒƒã‚·ãƒ¥ã‹ã‚‰ã‚¹ãƒ‘ãƒ¼ã‚¹ã‚°ãƒ©ãƒ•ã‚’æ§‹ç¯‰
-        // ã‚¹ãƒ‘ãƒ¼ã‚¹ã‚°ãƒ©ãƒ•ä¸Šã§Geodesic Kernelåˆ†è§£ã‚’è¡Œã„ï¼Œãã®çµæœã‚’æ ¼ç´ã™ã‚‹ï¼
-        // ã‚¹ãƒ‘ãƒ¼ã‚¹ã‚°ãƒ©ãƒ•ã®ã‚¨ãƒƒã‚¸æƒ…å ±sg->Eã¨é‡ã¿sg->Wã‚’ä½¿ç”¨ã—ã€ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã¨ã—ã¦pm.Kï¼ˆåŸºåº•ã®æ•°ï¼‰ã€pm.betã€pm.tauã€pm.epsã‚’å—ã‘å–ã‚‹ï¼
-        // pm.bet:å¤‰å½¢ã®æ»‘ã‚‰ã‹ã•ã‚„å‰›æ€§ã‚’åˆ¶å¾¡ã™ã‚‹ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ï¼å¤§ãã„ã»ã©ã€ã‚ˆã‚Šæ»‘ã‚‰ã‹ãªå¤‰å½¢ãŒä¿ƒã•ã‚Œã€å°ã•ã„ã»ã©å±€æ‰€çš„ãªå¤‰å½¢ãŒè¨±å®¹ã•ã‚Œã‚‹ï¼
-        // pm.tau:è·é›¢ã®å½±éŸ¿ã‚’åˆ¶å¾¡ã™ã‚‹é–¾å€¤ã‚„ã‚¹ã‚±ãƒ¼ãƒ«ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ï¼å°ã•ã„ã»ã©ã€è¿‘ã„ç‚¹åŒå£«ã®é–¢ä¿‚ãŒå¼·èª¿ã•ã‚Œã€å¤§ãã„ã»ã©é ã„ç‚¹åŒå£«ã®é–¢ä¿‚ã‚‚è€ƒæ…®ã«å…¥ã‚Œã‚‰ã‚Œã‚‹ï¼
-        // pm.eps:åå¾©è¨ˆç®—ã«ãŠã‘ã‚‹åæŸåˆ¤å®š
+            sg = sgraph_from_mesh(Y, D, M, pm.fn[FACE_Y]); // ƒƒbƒVƒ…‚©‚çƒXƒp[ƒXƒOƒ‰ƒt‚ğ\’z
+        // ƒXƒp[ƒXƒOƒ‰ƒtã‚ÅGeodesic Kernel•ª‰ğ‚ğs‚¢C‚»‚ÌŒ‹‰Ê‚ğŠi”[‚·‚éD
+        // ƒXƒp[ƒXƒOƒ‰ƒt‚ÌƒGƒbƒWî•ñsg->E‚Æd‚İsg->W‚ğg—p‚µAƒpƒ‰ƒ[ƒ^‚Æ‚µ‚Äpm.KiŠî’ê‚Ì”jApm.betApm.tauApm.eps‚ğó‚¯æ‚éD
+        // pm.bet:•ÏŒ`‚ÌŠŠ‚ç‚©‚³‚â„«‚ğ§Œä‚·‚éƒpƒ‰ƒ[ƒ^D‘å‚«‚¢‚Ù‚ÇA‚æ‚èŠŠ‚ç‚©‚È•ÏŒ`‚ª‘£‚³‚êA¬‚³‚¢‚Ù‚Ç‹ÇŠ“I‚È•ÏŒ`‚ª‹–—e‚³‚ê‚éD
+        // pm.tau:‹——£‚Ì‰e‹¿‚ğ§Œä‚·‚éè‡’l‚âƒXƒP[ƒ‹ƒpƒ‰ƒ[ƒ^D¬‚³‚¢‚Ù‚ÇA‹ß‚¢“_“¯m‚ÌŠÖŒW‚ª‹­’²‚³‚êA‘å‚«‚¢‚Ù‚Ç‰“‚¢“_“¯m‚ÌŠÖŒW‚àl—¶‚É“ü‚ê‚ç‚ê‚éD
+        // pm.eps:”½•œŒvZ‚É‚¨‚¯‚éû‘©”»’è
         LQ = geokdecomp(&K, Y, D, M, (const int **)sg->E, (const double **)sg->W, pm.K, pm.bet, pm.tau, pm.eps);
         sz.K = pm.K = K; /* update K */
         sgraph_free(sg);
@@ -142,9 +241,9 @@ int main(int argc, char **argv) {
     tt[2] = clock();
 
     nx = pm.dwn[TARGET];
-    rx = pm.dwr[TARGET]; // ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ç›®æ¨™ç‚¹æ•°ã¨æ¯”ç‡
+    rx = pm.dwr[TARGET]; // ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO–Ú•W“_”‚Æ”ä—¦
     ny = pm.dwn[SOURCE];
-    ry = pm.dwr[SOURCE]; // ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ç›®æ¨™ç‚¹æ•°ã¨æ¯”ç‡
+    ry = pm.dwr[SOURCE]; // ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO–Ú•W“_”‚Æ”ä—¦
     if ((nx || ny) && !(pm.opt & PW_OPT_QUIET))
         fprintf(stderr, "  Downsampling ...");
     if (nx) {
@@ -165,7 +264,7 @@ int main(int argc, char **argv) {
     }
     if ((nx || ny) && !(pm.opt & PW_OPT_QUIET))
         fprintf(stderr, " done. \n\n");
-    //ãƒ€ã‚¦ãƒ³ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ã•ã‚ŒãŸå„ç‚¹ã«å¯¾å¿œã™ã‚‹ã‚¸ã‚ªãƒ‡ã‚¸ãƒƒã‚¯ã‚«ãƒ¼ãƒãƒ«ã®å€¤ã‚’ã€æ–°ã—ã„LQé…åˆ—ã«é©ç”¨ã™ã‚‹ï¼
+    // ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚³‚ê‚½Še“_‚É‘Î‰‚·‚éƒWƒIƒfƒWƒbƒNƒJ[ƒlƒ‹‚Ì’l‚ğAV‚µ‚¢LQ”z—ñ‚É“K—p‚·‚éD
     if (ny && geok) {
         LQ0 = LQ;
         LQ = static_cast<double *>(calloc((size_t)K + (size_t)K * M, sd));
@@ -357,22 +456,7 @@ int main(int argc, char **argv) {
     if ((pm.opt & PW_OPT_PATHY) && !(pm.opt & PW_OPT_QUIET))
         fprintf(stderr, "  ** Search path during optimization was saved to: [%s]\n\n", ytraj);
 
-    free(x);
-    free(X);
-    free(wd);
-    free(muX);
-    free(a);
-    free(v);
-    free(sgm);
-    free(y);
-    free(Y);
-    free(wi);
-    free(muY);
-    free(u);
-    free(R);
-    free(t);
-    free(pf);
-
+    free_all(x, X, wd, muX, a, v, sgm, y, Y, wi, muY, u, R, t, pf, NULL);
     SetDllDirectory(NULL);
 
     return 0;
