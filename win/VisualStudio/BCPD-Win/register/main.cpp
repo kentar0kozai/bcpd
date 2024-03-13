@@ -42,7 +42,7 @@ void free_all(void *ptr, ...) {
 }
 
 bool loadModel(const char *path, int *numOfPts, int *dim, Eigen::MatrixXd &verts, Eigen::MatrixXi &faces, bool debug) {
-    // ‚Æ‚è‚ ‚¦‚¸PLYÀ‘•
+    // ï¿½Æ‚è‚ ï¿½ï¿½ï¿½ï¿½PLYï¿½ï¿½ï¿½ï¿½
     // TODO: OBJ, Other format
     std::string path_str = std::string(path);
     bool success = false;
@@ -66,7 +66,7 @@ struct CurvatureInfo {
 
 void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, CurvatureInfo &curvature, const std::string method) {
     // Gaussian curvature, Mean curvature and so on represent local properties of a surface, so use them for different purposes
-    // Mean Curvature : (> 0) = “Ê-plane, ( = 0) = plane or saddle, (< 0) : ‰š-plane
+    // Mean Curvature : (> 0) = ï¿½ï¿½-plane, ( = 0) = plane or saddle, (< 0) : ï¿½ï¿½-plane
     // Gaussian Curvature : (>0) = dome-like, ( = 0) = plane, (< 0 ) = : saddle
     igl::principal_curvature(verts, faces, curvature.PD1, curvature.PD2, curvature.PV1, curvature.PV2);
     Eigen::MatrixXd H;
@@ -93,36 +93,71 @@ void visualizeModel(const Eigen::MatrixXd verts, const Eigen::MatrixXi &faces, c
     viewer.launch();
 }
 
+void convertToFormat(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F,
+                     int &D,     // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+                     int &M,     // ï¿½Ê‚Ìï¿½
+                     double *&Y, // ï¿½_ï¿½Qï¿½fï¿½[ï¿½^ï¿½i1ï¿½ï¿½ï¿½ï¿½ï¿½zï¿½ï¿½j
+                     int **&mesh // ï¿½ï¿½ï¿½bï¿½Vï¿½ï¿½ï¿½ï¿½ï¿½
+) {
+    int N = V.rows(); // ï¿½ï¿½ï¿½_ï¿½Ìï¿½
+    D = V.cols();     // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½iï¿½[
+    M = F.rows();     // ï¿½Ê‚Ìï¿½ï¿½ï¿½ï¿½iï¿½[
+    // ï¿½_ï¿½Qï¿½fï¿½[ï¿½^ï¿½Ìï¿½ï¿½`
+    Y = new double[D * N];
+    for (int d = 0; d < D; ++d) {
+        for (int n = 0; n < N; ++n) {
+            Y[d + D * n] = V(n, d);
+        }
+    }
+    // ï¿½ï¿½ï¿½bï¿½Vï¿½ï¿½ï¿½ï¿½ï¿½Ìï¿½ï¿½`
+    mesh = new int *[M];
+    for (int m = 0; m < M; ++m) {
+        mesh[m] = new int[3];         // ï¿½Oï¿½pï¿½`ï¿½ï¿½ï¿½bï¿½Vï¿½ï¿½ï¿½ï¿½zï¿½ï¿½
+        for (int d = 0; d < 3; ++d) { // ï¿½Oï¿½pï¿½`ï¿½ÌŠeï¿½ï¿½ï¿½_
+            mesh[m][d] = F(m, d);
+        }
+    }
+    // ï¿½ï¿½ï¿½Ìï¿½ï¿½_ï¿½ÅAD, M, Y, meshï¿½ÉŠÖï¿½ï¿½ÌŒï¿½ï¿½Ê‚ï¿½ï¿½iï¿½[ï¿½ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½
+}
+
+void freeMesh(int **&mesh, int M) {
+    for (int i = 0; i < M; ++i) {
+        delete[] mesh[i];
+    }
+    delete[] mesh;
+    mesh = nullptr;
+}
+
 int main(int argc, char **argv) {
-    int d, k, l, m, n; // ƒ‹[ƒvƒJƒEƒ“ƒ^[
-    int D, M, N, lp;   // D:ŸŒ³”CM:“_ŒQX‚Ì“_”CN:“_ŒQY‚Ì“_”
-    char mode;         // ƒtƒ@ƒCƒ‹“Çƒ‚[ƒh
-    double s, r, Np, sgmX, sgmY, *muX, *muY; // s:ƒXƒP[ƒ‹Cr:•ÏŒ`‘e‚³CNp:„’è“_‚Ì”CsgmX,sgmY:•W€•Î·CƒXƒP[ƒ‹‚Ì’²®‚Ég—pCmuX,muY:•½‹ÏƒxƒNƒgƒ‹
-    double *u, *v, *w;       // u,v:•ÏŒ`ƒxƒNƒgƒ‹Cw:d‚İ
-    double *R, *t, *a, *sgm; // R:‰ñ“]ƒxƒNƒgƒ‹Ct:•½sˆÚ“®ƒxƒNƒgƒ‹Ca:Še“_‚Ì‘Î‰Šm—¦Csgm:Še“_‚ÌƒXƒP[ƒ‹•Ï‰»
-    pwpm pm;                 // ƒAƒ‹ƒS‚Ìƒpƒ‰ƒ[ƒ^‚ğŠi”[‚·‚é\‘¢‘Ì
-    pwsz sz;                 // ƒTƒCƒY‚âŸŒ³”‚ğŠi”[‚·‚é\‘¢‘Ì
-    double *x, *y, *X, *Y, *wd, **bX, **bY; // x,y:•ÏŠ·Œã‚Ì“_ŒQCX,Y:Œ³‚Ì“_ŒQCwd:ì‹Æ—pƒf[ƒ^‚ğŠi”[CbX,bY:ƒtƒ@ƒCƒ‹‚©‚ç“Ç‚İ‚ñ‚¾¶‚Ì“_ŒQ
-    int *wi;                                // ì‹Æ—p‚Ì®”ƒf[ƒ^‚ğŠi”[
-    int sd = sizeof(double), si = sizeof(int); // sd,si:double,intŒ^‚Ì•Ï”‚ªƒƒ‚ƒŠã‚Åè‚ß‚éƒTƒCƒY‚ğƒoƒCƒg’PˆÊ‚Å•ÛCŠî–{‚Í‚»‚ê‚¼‚ê8Byte,4Byte
+    int d, k, l, m, n; // ï¿½ï¿½ï¿½[ï¿½vï¿½Jï¿½Eï¿½ï¿½ï¿½^ï¿½[
+    int D, M, N, lp;   // D:ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½CM:ï¿½_ï¿½QXï¿½Ì“_ï¿½ï¿½ï¿½CN:ï¿½_ï¿½QYï¿½Ì“_ï¿½ï¿½
+    char mode;         // ï¿½tï¿½@ï¿½Cï¿½ï¿½ï¿½Çï¿½ï¿½ï¿½ï¿½[ï¿½h
+    double s, r, Np, sgmX, sgmY, *muX, *muY; // s:ï¿½Xï¿½Pï¿½[ï¿½ï¿½ï¿½Cr:ï¿½ÏŒ`ï¿½eï¿½ï¿½ï¿½CNp:ï¿½ï¿½ï¿½ï¿½_ï¿½Ìï¿½ï¿½CsgmX,sgmY:ï¿½Wï¿½ï¿½ï¿½Îï¿½ï¿½Cï¿½Xï¿½Pï¿½[ï¿½ï¿½ï¿½Ì’ï¿½ï¿½ï¿½ï¿½Égï¿½pï¿½CmuX,muY:ï¿½ï¿½ï¿½Ïƒxï¿½Nï¿½gï¿½ï¿½
+    double *u, *v, *w;       // u,v:ï¿½ÏŒ`ï¿½xï¿½Nï¿½gï¿½ï¿½ï¿½Cw:ï¿½dï¿½ï¿½
+    double *R, *t, *a, *sgm; // R:ï¿½ï¿½]ï¿½xï¿½Nï¿½gï¿½ï¿½ï¿½Ct:ï¿½ï¿½ï¿½sï¿½Ú“ï¿½ï¿½xï¿½Nï¿½gï¿½ï¿½ï¿½Ca:ï¿½eï¿½_ï¿½Ì‘Î‰ï¿½ï¿½mï¿½ï¿½ï¿½Csgm:ï¿½eï¿½_ï¿½ÌƒXï¿½Pï¿½[ï¿½ï¿½ï¿½Ï‰ï¿½
+    pwpm pm;                 // ï¿½Aï¿½ï¿½ï¿½Sï¿½Ìƒpï¿½ï¿½ï¿½ï¿½ï¿½[ï¿½^ï¿½ï¿½ï¿½iï¿½[ï¿½ï¿½ï¿½ï¿½\ï¿½ï¿½ï¿½ï¿½
+    pwsz sz;                 // ï¿½Tï¿½Cï¿½Yï¿½âŸï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½iï¿½[ï¿½ï¿½ï¿½ï¿½\ï¿½ï¿½ï¿½ï¿½
+    double *x, *y, *X, *Y, *wd, **bX, **bY; // x,y:ï¿½ÏŠï¿½ï¿½ï¿½Ì“_ï¿½Qï¿½CX,Y:ï¿½ï¿½ï¿½Ì“_ï¿½Qï¿½Cwd:ï¿½ï¿½Æ—pï¿½fï¿½[ï¿½^ï¿½ï¿½ï¿½iï¿½[ï¿½CbX,bY:ï¿½tï¿½@ï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç‚İï¿½ï¿½ñ‚¾ï¿½ï¿½Ì“_ï¿½Q
+    int *wi;                                // ï¿½ï¿½Æ—pï¿½Ìï¿½ï¿½ï¿½ï¿½fï¿½[ï¿½^ï¿½ï¿½ï¿½iï¿½[
+    int sd = sizeof(double), si = sizeof(int); // sd,si:double,intï¿½^ï¿½Ì•Ïï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Åï¿½ß‚ï¿½Tï¿½Cï¿½Yï¿½ï¿½ï¿½oï¿½Cï¿½gï¿½Pï¿½Ê‚Å•Ûï¿½ï¿½Cï¿½ï¿½{ï¿½Í‚ï¿½ï¿½ê‚¼ï¿½ï¿½8Byte,4Byte
     FILE *fp;
     char fn[256];
-    int dsz, isz; // dsz,isz:double,intŒ^‚Ìƒf[ƒ^ƒƒ‚ƒŠƒTƒCƒYEƒAƒ‹ƒS‚É•K—v‚È•‚“®¬”“_”E®”ƒf[ƒ^‚Ì‘—Ê
-    int xsz, ysz; // x,y”z—ñ‚É•K—v‚Èƒƒ‚ƒŠƒTƒCƒYC“_ŒQ‚ÌŸŒ³‚Æ“_‚Ì”A‚¨‚æ‚ÑƒAƒ‹ƒSƒŠƒYƒ€‚ÌƒIƒvƒVƒ‡ƒ“‚É‚æ‚Á‚ÄƒTƒCƒY‚ª•Ï‰»
+    int dsz, isz; // dsz,isz:double,intï¿½^ï¿½Ìƒfï¿½[ï¿½^ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Tï¿½Cï¿½Yï¿½Eï¿½Aï¿½ï¿½ï¿½Sï¿½É•Kï¿½vï¿½È•ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½_ï¿½ï¿½ï¿½Eï¿½ï¿½ï¿½ï¿½ï¿½fï¿½[ï¿½^ï¿½Ì‘ï¿½ï¿½ï¿½
+    int xsz, ysz; // x,yï¿½zï¿½ï¿½É•Kï¿½vï¿½Èƒï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Tï¿½Cï¿½Yï¿½Cï¿½_ï¿½Qï¿½Ìï¿½ï¿½ï¿½ï¿½Æ“_ï¿½Ìï¿½ï¿½Aï¿½ï¿½ï¿½ï¿½ÑƒAï¿½ï¿½ï¿½Sï¿½ï¿½ï¿½Yï¿½ï¿½ï¿½ÌƒIï¿½vï¿½Vï¿½ï¿½ï¿½ï¿½ï¿½É‚ï¿½ï¿½ï¿½ÄƒTï¿½Cï¿½Yï¿½ï¿½ï¿½Ï‰ï¿½
     const char *ytraj = ".optpath.bin", *xtraj = ".optpathX.bin";
-    double tt[7];                       // tt:Šeˆ—‚ÌŠÔ‚ğ‹L˜^
-    LARGE_INTEGER tv[7];                // ŠÔŒv‘ª—p‚Ì•Ï”
-    int nx, ny, N0, M0 = 0;             // nx,ny:ƒ^[ƒQƒbƒgEƒ\[ƒX‚Ìƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚Ì“_”CN0,M0:Œ³‚Ì“_‚Ì”
-    double rx, ry, *T, *X0, *Y0 = NULL; // rx,ry:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚Ì”ä—¦CT:•ÏŠ·Œã‚Ì“_ŒQCX0,Y0:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‘O‚Ì“_ŒQ
-    double sgmT, *muT;                  // sgmT:•ÏŠ·Œã‚Ì“_ŒQ‚Ì•W€•Î·CmuT:•ÏŠ·Œã‚Ì“_ŒQ‚Ì•½‹ÏƒxƒNƒgƒ‹
-    double *pf;                         // pf:ƒAƒ‹ƒS‚Ì«”\‚ğ‹L˜^
-    double *LQ = NULL, *LQ0 = NULL; // LQ,LQ0:ƒWƒIƒfƒWƒbƒNƒJ[ƒlƒ‹•ª‰ğ‚ÌŒ‹‰Ê‚ğŠi”[‚·‚é”z—ñ
-    int *Ux, *Uy; // Ux,Uy:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚ÉŒ³“_ŒQindex‚ğ•Û‘¶Dex:ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒOŒã‚Ìƒ^[ƒQƒbƒg“_ŒQ‚Ìi”Ô‚Ì“_‚ªŒ³“_ŒQ‚ÌUx[i]”Ô‚Ì“_‚É‘Î‰
-    int K;        // Geodesic Kernel‚ÌŒ`ó•\Œ»‚É•K—v‚ÈŠî’êƒxƒNƒgƒ‹‚Ì”
-    int geok = 0; // geok:ƒWƒIƒfƒWƒbƒNƒJ[ƒlƒ‹‚ğg—p‚·‚é‚©‚Ç‚¤‚©‚Ìƒtƒ‰ƒO
-    double *x0;   // x0:•âŠÔ‚â‚»‚Ì‘¼‚ÌŒãˆ—‚Åg—p‚³‚ê‚éC•ÏŠ·Œã‚Ì“_ŒQƒf[ƒ^‚ğŠi”[‚·‚é‚½‚ß‚Ì”z—ñ
+    double tt[7];                       // tt:ï¿½eï¿½ï¿½ï¿½ï¿½ï¿½Ìï¿½ï¿½Ô‚ï¿½ï¿½Lï¿½^
+    LARGE_INTEGER tv[7];                // ï¿½ï¿½ï¿½ÔŒvï¿½ï¿½ï¿½pï¿½Ì•Ïï¿½
+    int nx, ny, N0, M0 = 0;             // nx,ny:ï¿½^ï¿½[ï¿½Qï¿½bï¿½gï¿½Eï¿½\ï¿½[ï¿½Xï¿½Ìƒ_ï¿½Eï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½Ì“_ï¿½ï¿½ï¿½CN0,M0:ï¿½ï¿½ï¿½Ì“_ï¿½Ìï¿½
+    double rx, ry, *T, *X0, *Y0 = NULL; // rx,ry:ï¿½_ï¿½Eï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½Ì”ä—¦ï¿½CT:ï¿½ÏŠï¿½ï¿½ï¿½Ì“_ï¿½Qï¿½CX0,Y0:ï¿½_ï¿½Eï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½Oï¿½Ì“_ï¿½Q
+    double sgmT, *muT;                  // sgmT:ï¿½ÏŠï¿½ï¿½ï¿½Ì“_ï¿½Qï¿½Ì•Wï¿½ï¿½ï¿½Îï¿½ï¿½CmuT:ï¿½ÏŠï¿½ï¿½ï¿½Ì“_ï¿½Qï¿½Ì•ï¿½ï¿½Ïƒxï¿½Nï¿½gï¿½ï¿½
+    double *pf;                         // pf:ï¿½Aï¿½ï¿½ï¿½Sï¿½Ìï¿½ï¿½\ï¿½ï¿½ï¿½Lï¿½^
+    double *LQ = NULL, *LQ0 = NULL; // LQ,LQ0:ï¿½Wï¿½Iï¿½fï¿½Wï¿½bï¿½Nï¿½Jï¿½[ï¿½lï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÌŒï¿½ï¿½Ê‚ï¿½ï¿½iï¿½[ï¿½ï¿½ï¿½ï¿½zï¿½ï¿½
+    int *Ux, *Uy; // Ux,Uy:ï¿½_ï¿½Eï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½ÉŒï¿½ï¿½_ï¿½Qindexï¿½ï¿½Û‘ï¿½ï¿½Dex:ï¿½_ï¿½Eï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½Ìƒ^ï¿½[ï¿½Qï¿½bï¿½gï¿½_ï¿½Qï¿½ï¿½iï¿½Ô‚Ì“_ï¿½ï¿½ï¿½ï¿½ï¿½_ï¿½Qï¿½ï¿½Ux[i]ï¿½Ô‚Ì“_ï¿½É‘Î‰ï¿½
+    int K;        // Geodesic Kernelï¿½ÌŒ`ï¿½ï¿½\ï¿½ï¿½ï¿½É•Kï¿½vï¿½ÈŠï¿½ï¿½xï¿½Nï¿½gï¿½ï¿½ï¿½Ìï¿½
+    int geok = 0; // geok:ï¿½Wï¿½Iï¿½fï¿½Wï¿½bï¿½Nï¿½Jï¿½[ï¿½lï¿½ï¿½ï¿½ï¿½ï¿½gï¿½pï¿½ï¿½ï¿½é‚©ï¿½Ç‚ï¿½ï¿½ï¿½ï¿½Ìƒtï¿½ï¿½ï¿½O
+    double *x0;   // x0:ï¿½ï¿½Ô‚â‚»ï¿½Ì‘ï¿½ï¿½ÌŒãˆï¿½ï¿½ï¿½Ågï¿½pï¿½ï¿½ï¿½ï¿½ï¿½Cï¿½ÏŠï¿½ï¿½ï¿½Ì“_ï¿½Qï¿½fï¿½[ï¿½^ï¿½ï¿½ï¿½iï¿½[ï¿½ï¿½ï¿½é‚½ï¿½ß‚Ì”zï¿½ï¿½
 
-    /* ƒtƒ@ƒCƒ‹‚Ì“Ç‚İ‚İ */
+    /* ï¿½tï¿½@ï¿½Cï¿½ï¿½ï¿½Ì“Ç‚İï¿½ï¿½ï¿½ */
     pw_getopt(&pm, argc, argv);
 
     // Eigen::MatrixXd V; // Verticies
@@ -144,7 +179,7 @@ int main(int argc, char **argv) {
     // bY = read2d(&M, &D, &mode, pm.fn[SOURCE], "NA");
     // Y = static_cast<double *>(calloc((size_t)D * M, sd));
 
-    /* ƒƒbƒVƒ…‚Ì“Ç‚İ‚İ */
+    /* ï¿½ï¿½ï¿½bï¿½Vï¿½ï¿½ï¿½Ì“Ç‚İï¿½ï¿½ï¿½ */
     Eigen::MatrixXd X_verts, Y_verts;
     Eigen::MatrixXi X_faces, Y_faces;
     CurvatureInfo X_Curv, Y_Curv;
@@ -162,10 +197,10 @@ int main(int argc, char **argv) {
     calculatePrincipalCurvature(X_verts, X_faces, X_Curv, curv_method);
     // visualizeModel(Y_verts, Y_faces, Y_Curv.Curv);
 
-    /* —”‚Ì‰Šú‰» */
+    /* ï¿½ï¿½ï¿½ï¿½ï¿½Ìï¿½ï¿½ï¿½ï¿½ï¿½ */
     init_genrand64(pm.rns ? pm.rns : clock());
 
-    /* ŸŒ³”‚ÌŠm”F */
+    /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÌŠmï¿½F */
     if (D != sz.D) {
         printf("ERROR: Dimensions of X and Y are incosistent. dim(X)=%d, dim(Y)=%d\n", sz.D, D);
         exit(EXIT_FAILURE);
@@ -175,8 +210,8 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    /* ƒƒ‚ƒŠƒŒƒCƒAƒEƒg‚Ì•ÏX */
-    // 1ŸŒ³”z—ñ[x1, x2, x3, ..., xn, y1, y2, y3, ..., yn, z1, z2, z3, ..., zn]‚É•ÏX
+    /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Cï¿½Aï¿½Eï¿½gï¿½Ì•ÏX */
+    // 1ï¿½ï¿½ï¿½ï¿½ï¿½zï¿½ï¿½[x1, x2, x3, ..., xn, y1, y2, y3, ..., yn, z1, z2, z3, ..., zn]ï¿½É•ÏX
     for (d = 0; d < D; d++)
         for (n = 0; n < N; n++) {
             X[d + D * n] = bX[n][d];
@@ -187,6 +222,21 @@ int main(int argc, char **argv) {
             Y[d + D * m] = bY[m][d];
         }
     free2d(bY, M);
+
+    Eigen::MatrixXd YV; // é ‚ç‚¹åº§æ¨™ã‚’æ ¼ç´ã™ã‚‹è¡Œï¿½E
+    Eigen::MatrixXi YF; // ãƒ¡ãƒEï¿½ï¿½ãƒ¥ã®é¢æƒEï¿½ï¿½ã‚’æ ¼ç´ã™ã‚‹è¡Œï¿½E
+    int **mesh;
+
+    //// if (!igl::readPLY(pm.fn[SOURCE], YV, YF)) {
+    // if (!igl::readPLY("../data/armadillo_mesh.ply", YV, YF)) {
+    //    std::cerr << "Failed to read SOURCE PLY file." << std::endl;
+    //    exit(EXIT_FAILURE);
+    //}
+
+    // convertToFormat(YV, YF, D, M, Y, mesh);
+
+    printf("%d------------------------", D);
+    printf("%d------------------------", M);
 
     /* alias: size */
     sz.M = M;
@@ -201,7 +251,7 @@ int main(int argc, char **argv) {
     if (!(pm.opt & PW_OPT_QUIET))
         printInfo(sz, pm);
 
-    /* ˆÊ’uCƒXƒP[ƒ‹‚Ì³‹K‰» */
+    /* ï¿½Ê’uï¿½Cï¿½Xï¿½Pï¿½[ï¿½ï¿½ï¿½Ìï¿½ï¿½Kï¿½ï¿½ */
     muX = static_cast<double *>(calloc(D, sd));
     muY = static_cast<double *>(calloc(D, sd));
     if (!(pm.opt & PW_OPT_QUIET) && (D == 2 || D == 3))
@@ -210,11 +260,11 @@ int main(int argc, char **argv) {
     if (!(pm.opt & PW_OPT_QUIET) && (D == 2 || D == 3))
         print_norm(X, Y, D, N, M, 0, pm.nrm);
 
-    /*Geodesic Kernel‚ÌŒvZ */
+    /*Geodesic Kernelï¿½ÌŒvï¿½Z */
     QueryPerformanceCounter(tv + 1);
     tt[1] = clock();
-    // nnk:‹ß—×‚Ì“_‚Ì”‚ğw’è‚·‚éƒpƒ‰ƒ[ƒ^Cpm.fn[FACE_Y]:ƒƒbƒVƒ…‚Ì–Êî•ñ‚ğŠÜ‚Şƒtƒ@ƒCƒ‹–¼Cpm.tau:Geodesic
-    // Kernel‚ÌŒvZ‚Ég—p‚³‚ê‚éè‡’l
+    // nnk:ï¿½ß—×‚Ì“_ï¿½Ìï¿½ï¿½ï¿½ï¿½wï¿½è‚·ï¿½ï¿½pï¿½ï¿½ï¿½ï¿½ï¿½[ï¿½^ï¿½Cpm.fn[FACE_Y]:ï¿½ï¿½ï¿½bï¿½Vï¿½ï¿½ï¿½Ì–Êï¿½ï¿½ï¿½ï¿½Ü‚Şƒtï¿½@ï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½Cpm.tau:Geodesic
+    // Kernelï¿½ÌŒvï¿½Zï¿½Égï¿½pï¿½ï¿½ï¿½ï¿½ï¿½è‡’l
     geok = (pm.nnk || strlen(pm.fn[FACE_Y])) && pm.tau > 1e-5;
     // Fast Point Set Alignment
     if (geok && !(pm.opt & PW_OPT_QUIET))
@@ -222,14 +272,14 @@ int main(int argc, char **argv) {
     if (geok) {
         sgraph *sg;
         if (pm.nnk)
-            sg = sgraph_from_points(Y, D, M, pm.nnk, pm.nnr); // “_ŒQ‚©‚çƒXƒp[ƒXƒOƒ‰ƒt‚ğ\’z
+            sg = sgraph_from_points(Y, D, M, pm.nnk, pm.nnr); // ï¿½_ï¿½Qï¿½ï¿½ï¿½ï¿½Xï¿½pï¿½[ï¿½Xï¿½Oï¿½ï¿½ï¿½tï¿½ï¿½ï¿½\ï¿½z
         else
-            sg = sgraph_from_mesh(Y, D, M, pm.fn[FACE_Y]); // ƒƒbƒVƒ…‚©‚çƒXƒp[ƒXƒOƒ‰ƒt‚ğ\’z
-        // ƒXƒp[ƒXƒOƒ‰ƒtã‚ÅGeodesic Kernel•ª‰ğ‚ğs‚¢C‚»‚ÌŒ‹‰Ê‚ğŠi”[‚·‚éD
-        // ƒXƒp[ƒXƒOƒ‰ƒt‚ÌƒGƒbƒWî•ñsg->E‚Æd‚İsg->W‚ğg—p‚µAƒpƒ‰ƒ[ƒ^‚Æ‚µ‚Äpm.KiŠî’ê‚Ì”jApm.betApm.tauApm.eps‚ğó‚¯æ‚éD
-        // pm.bet:•ÏŒ`‚ÌŠŠ‚ç‚©‚³‚â„«‚ğ§Œä‚·‚éƒpƒ‰ƒ[ƒ^D‘å‚«‚¢‚Ù‚ÇA‚æ‚èŠŠ‚ç‚©‚È•ÏŒ`‚ª‘£‚³‚êA¬‚³‚¢‚Ù‚Ç‹ÇŠ“I‚È•ÏŒ`‚ª‹–—e‚³‚ê‚éD
-        // pm.tau:‹——£‚Ì‰e‹¿‚ğ§Œä‚·‚éè‡’l‚âƒXƒP[ƒ‹ƒpƒ‰ƒ[ƒ^D¬‚³‚¢‚Ù‚ÇA‹ß‚¢“_“¯m‚ÌŠÖŒW‚ª‹­’²‚³‚êA‘å‚«‚¢‚Ù‚Ç‰“‚¢“_“¯m‚ÌŠÖŒW‚àl—¶‚É“ü‚ê‚ç‚ê‚éD
-        // pm.eps:”½•œŒvZ‚É‚¨‚¯‚éû‘©”»’è
+            sg = sgraph_from_mesh(Y, D, M, pm.fn[FACE_Y]); // ï¿½ï¿½ï¿½bï¿½Vï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Xï¿½pï¿½[ï¿½Xï¿½Oï¿½ï¿½ï¿½tï¿½ï¿½ï¿½\ï¿½z
+        // ï¿½Xï¿½pï¿½[ï¿½Xï¿½Oï¿½ï¿½ï¿½tï¿½ï¿½ï¿½Geodesic Kernelï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½sï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½ÌŒï¿½ï¿½Ê‚ï¿½ï¿½iï¿½[ï¿½ï¿½ï¿½ï¿½D
+        // ï¿½Xï¿½pï¿½[ï¿½Xï¿½Oï¿½ï¿½ï¿½tï¿½ÌƒGï¿½bï¿½Wï¿½ï¿½ï¿½sg->Eï¿½Ædï¿½ï¿½sg->Wï¿½ï¿½ï¿½gï¿½pï¿½ï¿½ï¿½Aï¿½pï¿½ï¿½ï¿½ï¿½ï¿½[ï¿½^ï¿½Æ‚ï¿½ï¿½ï¿½pm.Kï¿½iï¿½ï¿½ï¿½Ìï¿½ï¿½jï¿½Apm.betï¿½Apm.tauï¿½Apm.epsï¿½ï¿½ï¿½ó‚¯ï¿½ï¿½D
+        // pm.bet:ï¿½ÏŒ`ï¿½ÌŠï¿½ï¿½ç‚©ï¿½ï¿½ï¿½â„ï¿½ï¿½ï¿½ğ§Œä‚·ï¿½ï¿½pï¿½ï¿½ï¿½ï¿½ï¿½[ï¿½^ï¿½Dï¿½å‚«ï¿½ï¿½ï¿½Ù‚ÇAï¿½ï¿½èŠŠï¿½ç‚©ï¿½È•ÏŒ`ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù‚Ç‹Çï¿½ï¿½Iï¿½È•ÏŒ`ï¿½ï¿½ï¿½ï¿½ï¿½eï¿½ï¿½ï¿½ï¿½ï¿½D
+        // pm.tau:ï¿½ï¿½ï¿½ï¿½ï¿½Ì‰eï¿½ï¿½ï¿½ğ§Œä‚·ï¿½ï¿½è‡’lï¿½ï¿½Xï¿½Pï¿½[ï¿½ï¿½ï¿½pï¿½ï¿½ï¿½ï¿½ï¿½[ï¿½^ï¿½Dï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù‚ÇAï¿½ß‚ï¿½ï¿½_ï¿½ï¿½ï¿½mï¿½ÌŠÖŒWï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Aï¿½å‚«ï¿½ï¿½ï¿½Ù‚Ç‰ï¿½ï¿½ï¿½ï¿½_ï¿½ï¿½ï¿½mï¿½ÌŠÖŒWï¿½ï¿½ï¿½lï¿½ï¿½ï¿½É“ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½D
+        // pm.eps:ï¿½ï¿½ï¿½ï¿½ï¿½vï¿½Zï¿½É‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         LQ = geokdecomp(&K, Y, D, M, (const int **)sg->E, (const double **)sg->W, pm.K, pm.bet, pm.tau, pm.eps);
         sz.K = pm.K = K; /* update K */
         sgraph_free(sg);
@@ -241,9 +291,9 @@ int main(int argc, char **argv) {
     tt[2] = clock();
 
     nx = pm.dwn[TARGET];
-    rx = pm.dwr[TARGET]; // ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO–Ú•W“_”‚Æ”ä—¦
+    rx = pm.dwr[TARGET]; // ï¿½_ï¿½Eï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½Ú•Wï¿½_ï¿½ï¿½ï¿½Æ”ä—¦
     ny = pm.dwn[SOURCE];
-    ry = pm.dwr[SOURCE]; // ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO–Ú•W“_”‚Æ”ä—¦
+    ry = pm.dwr[SOURCE]; // ï¿½_ï¿½Eï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½Ú•Wï¿½_ï¿½ï¿½ï¿½Æ”ä—¦
     if ((nx || ny) && !(pm.opt & PW_OPT_QUIET))
         fprintf(stderr, "  Downsampling ...");
     if (nx) {
@@ -264,7 +314,7 @@ int main(int argc, char **argv) {
     }
     if ((nx || ny) && !(pm.opt & PW_OPT_QUIET))
         fprintf(stderr, " done. \n\n");
-    // ƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO‚³‚ê‚½Še“_‚É‘Î‰‚·‚éƒWƒIƒfƒWƒbƒNƒJ[ƒlƒ‹‚Ì’l‚ğAV‚µ‚¢LQ”z—ñ‚É“K—p‚·‚éD
+    // ï¿½_ï¿½Eï¿½ï¿½ï¿½Tï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½ê‚½ï¿½eï¿½_ï¿½É‘Î‰ï¿½ï¿½ï¿½ï¿½ï¿½Wï¿½Iï¿½fï¿½Wï¿½bï¿½Nï¿½Jï¿½[ï¿½lï¿½ï¿½ï¿½Ì’lï¿½ï¿½ï¿½Aï¿½Vï¿½ï¿½ï¿½ï¿½LQï¿½zï¿½ï¿½É“Kï¿½pï¿½ï¿½ï¿½ï¿½D
     if (ny && geok) {
         LQ0 = LQ;
         LQ = static_cast<double *>(calloc((size_t)K + (size_t)K * M, sd));
@@ -457,6 +507,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  ** Search path during optimization was saved to: [%s]\n\n", ytraj);
 
     free_all(x, X, wd, muX, a, v, sgm, y, Y, wi, muY, u, R, t, pf, NULL);
+    // freeMesh(mesh, M);
     SetDllDirectory(NULL);
 
     return 0;

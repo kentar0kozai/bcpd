@@ -26,6 +26,7 @@
 #include "bcpd-util.h"
 #include "version.h"
 
+#define USE_OPENMP
 #ifdef USE_OPENMP
 static int omp = 1;
 #else

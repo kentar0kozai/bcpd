@@ -1,4 +1,5 @@
 #pragma once
+#define NOMINMAX
 
 #include <assert.h>
 #include <ctype.h>
@@ -7,7 +8,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#define NOMINMAX
+
+#include <Eigen/Core>
+#include <cstdlib>
+#include <igl/readPLY.h>
+#include <iostream>
+#include <vector>
 #include <windows.h>
 
 extern "C" {
