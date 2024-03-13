@@ -68,6 +68,7 @@ void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::Matr
     // Gaussian curvature, Mean curvature and so on represent local properties of a surface, so use them for different purposes
     // Mean Curvature : (> 0) = “Ê-plane, ( = 0) = plane or saddle, (< 0) : ‰š-plane
     // Gaussian Curvature : (>0) = dome-like, ( = 0) = plane, (< 0 ) = : saddle
+    igl::principal_curvature(verts, faces, curvature.PD1, curvature.PD2, curvature.PV1, curvature.PV2);
     Eigen::MatrixXd H;
     if (method == "gaussian") {
         H = curvature.PD1 * curvature.PD2;
@@ -79,6 +80,8 @@ void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::Matr
 
     if (H.size() > 0) {
         curvature.Curv = (H.array() - H.minCoeff()) / (H.maxCoeff() - H.minCoeff());
+    } else {
+        std::cerr << "Error : failed to calculate curvature\n";
     }
 }
 
@@ -197,7 +200,7 @@ int main(int argc, char **argv) {
     }
     calculatePrincipalCurvature(Y_verts, Y_faces, Y_Curv, curv_method);
     calculatePrincipalCurvature(X_verts, X_faces, X_Curv, curv_method);
-    visualizeModel(Y_verts, Y_faces, Y_Curv.Curv);
+    visualizeModel(X_verts, X_faces, X_Curv.Curv);
 
     /* —”‚Ì‰Šú‰» */
     init_genrand64(pm.rns ? pm.rns : clock());
