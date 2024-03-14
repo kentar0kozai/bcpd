@@ -19,80 +19,8 @@
 // THE SOFTWARE.
 
 #include "bcpd.h"
-#include <igl/opengl/glfw/Viewer.h>
-#include <igl/principal_curvature.h>
-#include <igl/readPLY.h>
-#include <igl/rgb_to_hsv.h>
-#include <stdarg.h>
-#include <stdlib.h>
 extern "C" {
 #include "../../../../base/geokdecomp.h"
-}
-
-void free_all(void *ptr, ...) {
-    va_list args;
-    va_start(args, ptr);
-
-    while (ptr != NULL) {
-        free(ptr);
-        ptr = va_arg(args, void *);
-    }
-
-    va_end(args);
-}
-
-bool loadModel(const char *path, int *numOfPts, int *dim, Eigen::MatrixXd &verts, Eigen::MatrixXi &faces, bool debug) {
-    // とりあえずPLY実装
-    // TODO: OBJ, Other format
-    std::string path_str = std::string(path);
-    bool success = false;
-    success = igl::readPLY(path_str, verts, faces);
-    if (debug) {
-        std::cout << "number of mesh.V is " << verts.rows() << '\n';
-        std::cout << "number of mesh.F is " << faces.rows() << '\n';
-        std::cout << "dimension of mesh.V is " << verts.cols() << '\n';
-        std::cout << "dimension of mesh.F is " << faces.cols() << '\n';
-    }
-    return success;
-}
-
-struct CurvatureInfo {
-    Eigen::MatrixXd PD1; // Principal curvature direction 1
-    Eigen::MatrixXd PD2; // Principal curvature direction 2
-    Eigen::VectorXd PV1; // Principal curvature value 1
-    Eigen::VectorXd PV2; // Principal curvature value 2
-    Eigen::VectorXd Curv;
-};
-
-void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, CurvatureInfo &curvature, const std::string method) {
-    // Gaussian curvature, Mean curvature and so on represent local properties of a surface, so use them for different purposes
-    // Mean Curvature : (> 0) = 凸-plane, ( = 0) = plane or saddle, (< 0) : 凹-plane
-    // Gaussian Curvature : (>0) = dome-like, ( = 0) = plane, (< 0 ) = : saddle
-    igl::principal_curvature(verts, faces, curvature.PD1, curvature.PD2, curvature.PV1, curvature.PV2);
-    Eigen::MatrixXd H;
-    if (method == "gaussian") {
-        H = curvature.PD1 * curvature.PD2;
-    } else if (method == "mean") {
-        H = curvature.PD1 + curvature.PD2;
-    } else {
-        std::cerr << "Error : No such that method.\n";
-    }
-
-    if (H.size() > 0) {
-        curvature.Curv = (H.array() - H.minCoeff()) / (H.maxCoeff() - H.minCoeff());
-    } else {
-        std::cerr << "Error : failed to calculate curvature\n";
-    }
-}
-
-void visualizeModel(const Eigen::MatrixXd verts, const Eigen::MatrixXi &faces, const Eigen::MatrixXd &feats) {
-    igl::opengl::glfw::Viewer viewer;
-    viewer.data().set_mesh(verts, faces);
-    if (feats.size() > 0) {
-        igl::ColorMapType cmap = igl::COLOR_MAP_TYPE_JET;
-        viewer.data().set_data(feats, cmap);
-    }
-    viewer.launch();
 }
 
 void convertToFormat(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F,
@@ -143,7 +71,8 @@ int main(int argc, char **argv) {
     pwpm pm;                 // アルゴのパラメータを格納する構造体
     pwsz sz;                 // サイズや次元数を格納する構造体
     double *x, *y, *X, *Y, *wd, **bX, **bY; // x,y:変換後の点群，X,Y:元の点群，wd:作業用データを格納，bX,bY:ファイルから読み込んだ生の点群
-    int *wi;                                // 作業用の整数データを格納
+    int *X_f, *Y_f;                            // メッシュの面
+    int *wi;                                   // 作業用の整数データを格納
     int sd = sizeof(double), si = sizeof(int); // sd,si:double,int型の変数がメモリ上で占めるサイズをバイト単位で保持，基本はそれぞれ8Byte,4Byte
     FILE *fp;
     char fn[256];
@@ -190,17 +119,18 @@ int main(int argc, char **argv) {
     CurvatureInfo X_Curv, Y_Curv;
     std::string curv_method = "gaussian";
     bool success = false;
-    success = loadModel(pm.fn[SOURCE], &M, &D, Y_verts, Y_faces, true);
+    success = loadModel(pm.fn[SOURCE], M, D, Y_verts, Y_faces, true);
     if (!success) {
         throw std::runtime_error("Failed to load source model.");
     }
-    success = loadModel(pm.fn[TARGET], &N, &D, X_verts, X_faces, true);
+    sz.D = D;
+    success = loadModel(pm.fn[TARGET], N, D, X_verts, X_faces, true);
     if (!success) {
         throw std::runtime_error("Failed to load target model.");
     }
     calculatePrincipalCurvature(Y_verts, Y_faces, Y_Curv, curv_method);
     calculatePrincipalCurvature(X_verts, X_faces, X_Curv, curv_method);
-    visualizeModel(X_verts, X_faces, X_Curv.Curv);
+    // visualizeModel(X_verts, X_faces, X_Curv.Curv);
 
     /* 乱数の初期化 */
     init_genrand64(pm.rns ? pm.rns : clock());
@@ -216,17 +146,8 @@ int main(int argc, char **argv) {
     }
 
     /* メモリレイアウトの変更 */
-    // 1次元配列[x1, x2, x3, ..., xn, y1, y2, y3, ..., yn, z1, z2, z3, ..., zn]に変更
-    for (d = 0; d < D; d++)
-        for (n = 0; n < N; n++) {
-            X[d + D * n] = bX[n][d];
-        }
-    free2d(bX, N);
-    for (d = 0; d < D; d++)
-        for (m = 0; m < M; m++) {
-            Y[d + D * m] = bY[m][d];
-        }
-    free2d(bY, M);
+    changeMemoryLayout(X_verts, X_faces, X, X_f);
+    changeMemoryLayout(Y_verts, Y_faces, Y, Y_f);
 
     /* alias: size */
     sz.M = M;
@@ -264,7 +185,8 @@ int main(int argc, char **argv) {
         if (pm.nnk)
             sg = sgraph_from_points(Y, D, M, pm.nnk, pm.nnr); // 点群からスパースグラフを構築
         else
-            sg = sgraph_from_mesh(Y, D, M, pm.fn[FACE_Y]); // メッシュからスパースグラフを構築
+            // sg = sgraph_from_mesh(Y, D, M, pm.fn[FACE_Y]); // メッシュからスパースグラフを構築
+            sg = sgraph_from_mesh_data(X_verts, X_faces);
         // スパースグラフ上でGeodesic Kernel分解を行い，その結果を格納する．
         // スパースグラフのエッジ情報sg->Eと重みsg->Wを使用し、パラメータとしてpm.K（基底の数）、pm.bet、pm.tau、pm.epsを受け取る．
         // pm.bet:変形の滑らかさや剛性を制御するパラメータ．大きいほど、より滑らかな変形が促され、小さいほど局所的な変形が許容される．
@@ -281,9 +203,9 @@ int main(int argc, char **argv) {
     tt[2] = clock();
 
     nx = pm.dwn[TARGET];
-    rx = pm.dwr[TARGET]; // ダウンサンプリング目標点数と比率
+    rx = pm.dwr[TARGET]; // ダウンサンプリング目標点数と比率, (nx, rx) = (2000, -0.08)
     ny = pm.dwn[SOURCE];
-    ry = pm.dwr[SOURCE]; // ダウンサンプリング目標点数と比率
+    ry = pm.dwr[SOURCE]; // ダウンサンプリング目標点数と比率, (ny, ry) = (2000, -0.08)
     if ((nx || ny) && !(pm.opt & PW_OPT_QUIET))
         fprintf(stderr, "  Downsampling ...");
     if (nx) {
@@ -496,7 +418,7 @@ int main(int argc, char **argv) {
     if ((pm.opt & PW_OPT_PATHY) && !(pm.opt & PW_OPT_QUIET))
         fprintf(stderr, "  ** Search path during optimization was saved to: [%s]\n\n", ytraj);
 
-    free_all(x, X, wd, muX, a, v, sgm, y, Y, wi, muY, u, R, t, pf, NULL);
+    free_all(x, X, X_f, wd, muX, a, v, sgm, y, Y, Y_f, wi, muY, u, R, t, pf, NULL);
     // freeMesh(mesh, M);
     SetDllDirectory(NULL);
 

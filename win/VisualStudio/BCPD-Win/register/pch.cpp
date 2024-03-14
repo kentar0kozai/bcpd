@@ -624,3 +624,111 @@ void fprint_comptime2(FILE *fp, const LARGE_INTEGER *tv, double *tt, int geok) {
     fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 5, tv + 4), (tt[5] - tt[4]) / CLOCKS_PER_SEC);
     fprintf(fp, "%lf\t%lf\n", tvcalc(tv + 1, tv + 0), tvcalc(tv + 6, tv + 5));
 }
+
+void free_all(void *ptr, ...) {
+    va_list args;
+    va_start(args, ptr);
+
+    while (ptr != NULL) {
+        free(ptr);
+        ptr = va_arg(args, void *);
+    }
+
+    va_end(args);
+}
+
+bool loadModel(const char *path, int &numOfPts, int &dim, Eigen::MatrixXd &verts, Eigen::MatrixXi &faces, bool debug) {
+    // ‚Æ‚è‚ ‚¦‚¸PLYŽÀ‘•
+    // TODO: OBJ, Other format
+    std::string path_str = std::string(path);
+    bool success = false;
+    success = igl::readPLY(path_str, verts, faces);
+    if (debug) {
+        std::cout << "number of mesh.V is " << verts.rows() << '\n';
+        std::cout << "number of mesh.F is " << faces.rows() << '\n';
+        std::cout << "dimension of mesh.V is " << verts.cols() << '\n';
+        std::cout << "dimension of mesh.F is " << faces.cols() << '\n';
+    }
+    numOfPts = verts.rows();
+    dim = verts.cols();
+    return success;
+}
+
+void changeMemoryLayout(Eigen::MatrixXd &verts, Eigen::MatrixXi &faces, double *&verts_array, int *&faces_array) {
+    int N = verts.rows();
+    int D = verts.cols();
+    verts_array = new double[N * D];
+    for (int n = 0; n < N; n++) {
+        for (int d = 0; d < D; d++) {
+            verts_array[n * D + d] = verts(n, d);
+        }
+    }
+
+    int F = faces.rows();
+    int V = faces.cols();
+    faces_array = new int[F * V];
+    for (int f = 0; f < F; f++) {
+        for (int v = 0; v < V; v++) {
+            faces_array[f * V + v] = faces(f, v);
+        }
+    }
+}
+
+void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, CurvatureInfo &curvature, const std::string method) {
+    // Gaussian curvature, Mean curvature and so on represent local properties of a surface, so use them for different purposes
+    // Mean Curvature : (> 0) = “Ê-plane, ( = 0) = plane or saddle, (< 0) : ‰š-plane
+    // Gaussian Curvature : (>0) = dome-like, ( = 0) = plane, (< 0 ) = : saddle
+    igl::principal_curvature(verts, faces, curvature.PD1, curvature.PD2, curvature.PV1, curvature.PV2);
+    Eigen::MatrixXd H;
+    if (method == "gaussian") {
+        H = curvature.PD1 * curvature.PD2;
+    } else if (method == "mean") {
+        H = curvature.PD1 + curvature.PD2;
+    } else {
+        std::cerr << "Error : No such that method.\n";
+    }
+
+    if (H.size() > 0) {
+        curvature.Curv = (H.array() - H.minCoeff()) / (H.maxCoeff() - H.minCoeff());
+    } else {
+        std::cerr << "Error : failed to calculate curvature\n";
+    }
+}
+
+void visualizeModel(const Eigen::MatrixXd verts, const Eigen::MatrixXi &faces, const Eigen::MatrixXd &feats) {
+    igl::opengl::glfw::Viewer viewer;
+    viewer.data().set_mesh(verts, faces);
+    if (feats.size() > 0) {
+        igl::ColorMapType cmap = igl::COLOR_MAP_TYPE_JET;
+        viewer.data().set_data(feats, cmap);
+    }
+    viewer.launch();
+}
+
+sgraph *sgraph_from_mesh_data(const Eigen::MatrixXd &Verts, const Eigen::MatrixXi &Faces) {
+    sgraph *sg;
+    int M = Verts.rows();
+    int D = Verts.cols();
+
+    /* construct graph */
+    sg = sgraph_new(M);
+    sg->beg = 0;
+
+    for (int l = 0; l < Faces.rows(); l++) {
+        int v0, v1, v2;
+
+        /* case: mesh */
+        v0 = Faces(l, 0);
+        v1 = Faces(l, 1);
+        v2 = Faces(l, 2);
+
+        add_uedge(sg, v0, v1, dist(Verts.data() + D * v0, Verts.data() + D * v1, D, 1));
+        add_uedge(sg, v1, v2, dist(Verts.data() + D * v1, Verts.data() + D * v2, D, 1));
+        add_uedge(sg, v2, v0, dist(Verts.data() + D * v2, Verts.data() + D * v0, D, 1));
+    }
+
+    assert(issymmetry((const int **)sg->E, (const double **)sg->W, M));
+    throw "myFunction is not implemented yet.";
+
+    return sg;
+}

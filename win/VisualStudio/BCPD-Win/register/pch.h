@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,11 +12,13 @@
 
 #include <Eigen/Core>
 #include <cstdlib>
+#include <igl/opengl/glfw/Viewer.h>
+#include <igl/principal_curvature.h>
 #include <igl/readPLY.h>
+#include <igl/rgb_to_hsv.h>
 #include <iostream>
 #include <vector>
 #include <windows.h>
-
 extern "C" {
 #include "../../../../base/kdtree.h"
 #include "../../../../base/kernel.h"
@@ -63,3 +66,23 @@ double tvcalc(const LARGE_INTEGER *end, const LARGE_INTEGER *beg);
 void fprint_comptime(FILE *fp, const LARGE_INTEGER *tv, double *tt, int nx, int ny, int geok);
 
 void fprint_comptime2(FILE *fp, const LARGE_INTEGER *tv, double *tt, int geok);
+
+void free_all(void *ptr, ...);
+
+bool loadModel(const char *path, int &numOfPts, int &dim, Eigen::MatrixXd &verts, Eigen::MatrixXi &faces, bool debug);
+
+void changeMemoryLayout(Eigen::MatrixXd &verts, Eigen::MatrixXi &faces, double *&verts_array, int *&faces_array);
+
+struct CurvatureInfo {
+    Eigen::MatrixXd PD1; // Principal curvature direction 1
+    Eigen::MatrixXd PD2; // Principal curvature direction 2
+    Eigen::VectorXd PV1; // Principal curvature value 1
+    Eigen::VectorXd PV2; // Principal curvature value 2
+    Eigen::VectorXd Curv;
+};
+
+void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, CurvatureInfo &curvature, const std::string method);
+
+void visualizeModel(const Eigen::MatrixXd verts, const Eigen::MatrixXi &faces, const Eigen::MatrixXd &feats);
+
+sgraph *sgraph_from_mesh_data(const Eigen::MatrixXd &Verts, const Eigen::MatrixXi &Faces);
