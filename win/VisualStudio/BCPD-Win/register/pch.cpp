@@ -722,13 +722,56 @@ sgraph *sgraph_from_mesh_data(const Eigen::MatrixXd &Verts, const Eigen::MatrixX
         v1 = Faces(l, 1);
         v2 = Faces(l, 2);
 
-        add_uedge(sg, v0, v1, dist(Verts.data() + D * v0, Verts.data() + D * v1, D, 1));
-        add_uedge(sg, v1, v2, dist(Verts.data() + D * v1, Verts.data() + D * v2, D, 1));
-        add_uedge(sg, v2, v0, dist(Verts.data() + D * v2, Verts.data() + D * v0, D, 1));
+        add_uedge(sg, v0, v1, dist(Verts.row(v0).data(), Verts.row(v1).data(), D, 1));
+        add_uedge(sg, v1, v2, dist(Verts.row(v1).data(), Verts.row(v2).data(), D, 1));
+        add_uedge(sg, v2, v0, dist(Verts.row(v2).data(), Verts.row(v0).data(), D, 1));
     }
 
     assert(issymmetry((const int **)sg->E, (const double **)sg->W, M));
-    throw "myFunction is not implemented yet.";
 
     return sg;
+}
+
+void dump_geokdecomp_output_ply(const char *filename, const double *LQ, const double *Y, int D, int M, int K) {
+    std::cout << "----------------------------------- Write Kernel \n";
+    FILE *fp = fopen(filename, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "ERROR: Failed to open file %s for writing.\n", filename);
+        exit(EXIT_FAILURE);
+    }
+
+    // Write PLY header
+    fprintf(fp, "ply\n");
+    fprintf(fp, "format ascii 1.0\n");
+    fprintf(fp, "element vertex %d\n", M);
+    fprintf(fp, "property double x\n");
+    fprintf(fp, "property double y\n");
+    fprintf(fp, "property double z\n");
+    for (int k = 0; k < K; k++) {
+        fprintf(fp, "property double eigenvector%d\n", k);
+    }
+    fprintf(fp, "element eigenvalue %d\n", K);
+    fprintf(fp, "property double value\n");
+    fprintf(fp, "end_header\n");
+
+    // Write vertex data
+    for (int m = 0; m < M; m++) {
+        // Write point coordinates
+        for (int d = 0; d < D; d++) {
+            fprintf(fp, "%.8f ", Y[m * D + d]);
+        }
+
+        // Write eigenvector values for the current point
+        for (int k = 0; k < K; k++) {
+            fprintf(fp, "%.8f ", LQ[m + M * k + K]);
+        }
+        fprintf(fp, "\n");
+    }
+
+    // Write eigenvalue data
+    for (int k = 0; k < K; k++) {
+        fprintf(fp, "%.8f\n", LQ[k]);
+    }
+
+    fclose(fp);
 }

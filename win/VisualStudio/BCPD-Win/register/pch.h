@@ -86,3 +86,5 @@ void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::Matr
 void visualizeModel(const Eigen::MatrixXd verts, const Eigen::MatrixXi &faces, const Eigen::MatrixXd &feats);
 
 sgraph *sgraph_from_mesh_data(const Eigen::MatrixXd &Verts, const Eigen::MatrixXi &Faces);
+
+void dump_geokdecomp_output_ply(const char *filename, const double *LQ, const double *Y, int D, int M, int K);

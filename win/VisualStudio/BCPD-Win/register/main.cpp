@@ -181,12 +181,13 @@ int main(int argc, char **argv) {
     if (geok && !(pm.opt & PW_OPT_QUIET))
         fprintf(stderr, "  Executing the FPSA algorithm ... ");
     if (geok) {
+        std::cout << "----------------------Using Geodesic Kernel\n";
         sgraph *sg;
         if (pm.nnk)
-            sg = sgraph_from_points(Y, D, M, pm.nnk, pm.nnr); // 点群からスパースグラフを構築
+            sg = sgraph_from_points(Y, D, M, pm.nnk, pm.nnr); // Source 点群からスパースグラフを構築
         else
             // sg = sgraph_from_mesh(Y, D, M, pm.fn[FACE_Y]); // メッシュからスパースグラフを構築
-            sg = sgraph_from_mesh_data(X_verts, X_faces);
+            sg = sgraph_from_mesh_data(Y_verts, Y_faces);
         // スパースグラフ上でGeodesic Kernel分解を行い，その結果を格納する．
         // スパースグラフのエッジ情報sg->Eと重みsg->Wを使用し、パラメータとしてpm.K（基底の数）、pm.bet、pm.tau、pm.epsを受け取る．
         // pm.bet:変形の滑らかさや剛性を制御するパラメータ．大きいほど、より滑らかな変形が促され、小さいほど局所的な変形が許容される．
@@ -197,7 +198,13 @@ int main(int argc, char **argv) {
         sgraph_free(sg);
         if (geok && !(pm.opt & PW_OPT_QUIET))
             fprintf(stderr, "done. (K->%d)\n\n", K);
+    } else {
+        std::cout << "-------------------------Gaussian Kernel only";
     }
+
+    const char *filename = "D:/1_autoannotate/bcpd/win/VisualStudio/source_eigen.ply ";
+    dump_geokdecomp_output_ply(filename, LQ, Y, D, M, K);
+    // LQ = [[L[0], ..., L[M-1]], [Q[0], ..., Q[M-1]]]
 
     QueryPerformanceCounter(tv + 2);
     tt[2] = clock();
