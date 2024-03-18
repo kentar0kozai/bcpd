@@ -34,3 +34,8 @@
 /win/VisualStudio/x64/Release/BCPD-Win.pdb
 /visualize/Work
 /scripts/Work
+scripts/output_comptime.txt
+scripts/output_info.txt
+scripts/output_y.interpolated.txt
+scripts/output_y.txt
+scripts/source_eigen.ply

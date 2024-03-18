@@ -3,8 +3,8 @@ import subprocess
 
 # パスの設定
 current_dir = os.getcwd()
-x_file = os.path.join(current_dir, '../data/armadillo-g-y.txt')
-y_file = os.path.join(current_dir, '../data/armadillo-g-x.txt')
+x_file = os.path.join(current_dir, '../data/armadillo-y-mesh.ply')
+y_file = os.path.join(current_dir, '../data/armadillo-x-mesh.ply')
 bcpd_bin = os.path.join(current_dir, '../bcpd' if not os.name == 'nt' else '../win/VisualStudio/x64/Release/BCPD-Win.exe')
 fnf = os.path.join(current_dir, '../data/armadillo-g-triangles.txt')
 
