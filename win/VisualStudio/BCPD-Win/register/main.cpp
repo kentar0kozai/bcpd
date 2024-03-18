@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
         std::cout << "-------------------------Gaussian Kernel only";
     }
 
-    const char *filename = "D:/1_autoannotate/bcpd/win/VisualStudio/source_eigen.ply ";
+    const char *filename = "source_eigen.ply ";
     dump_geokdecomp_output_ply(filename, LQ, Y, D, M, K);
     // LQ = [[L[0], ..., L[M-1]], [Q[0], ..., Q[M-1]]]
 

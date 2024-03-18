@@ -735,10 +735,11 @@ sgraph *sgraph_from_mesh_data(const Eigen::MatrixXd &Verts, const Eigen::MatrixX
 void dump_geokdecomp_output_ply(const char *filename, const double *LQ, const double *Y, int D, int M, int K) {
     std::cout << "----------------------------------- Write Kernel \n";
     FILE *fp = fopen(filename, "w");
-    if (fp == NULL) {
-        fprintf(stderr, "ERROR: Failed to open file %s for writing.\n", filename);
-        exit(EXIT_FAILURE);
-    }
+    // wだとファイルが無かったら新規作成されるから，わざわざエラーハンドリングしなくて良いのでは？
+    //if (fp == NULL) {
+    //    fprintf(stderr, "ERROR: Failed to open file %s for writing.\n", filename);
+    //    exit(EXIT_FAILURE);
+    //}
 
     // Write PLY header
     fprintf(fp, "ply\n");
