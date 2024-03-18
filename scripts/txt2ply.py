@@ -60,8 +60,8 @@ def write_ply_binary(filename, points, triangles):
 
 
 # ファイルからデータを読み込む
-points = read_point_cloud("../data/armadillo-g-y.txt")
+points = read_point_cloud("../data/armadillo-g-x.txt")
 triangles = read_mesh_indices("../data/armadillo-g-triangles.txt")
 
 # PLYファイルを作成する
-write_ply_binary("../data/armadillo_mesh.ply", points, triangles)
+write_ply_binary("../data/armadillo-x-mesh.ply", points, triangles)
