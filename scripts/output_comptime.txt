@@ -1,6 +1,0 @@
-    FPSA algorithm:  4.714 s (real) / 4.714 s (cpu)
-    Downsampling:    0.026 s (real) / 0.027 s (cpu)
-    VB Optimization: 5.952 s (real) / 5.952 s (cpu)
-    Interpolation:   0.105 s (real) / 0.104 s (cpu)
-    File reading:    0.275 s
-    File writing:    0.617 s
