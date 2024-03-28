@@ -674,10 +674,132 @@ void changeMemoryLayout(Eigen::MatrixXd &verts, Eigen::MatrixXi &faces, double *
     }
 }
 
+void visualizeNeighborhood(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, int vertexIndex, const std::vector<int> &vv) {
+    igl::opengl::glfw::Viewer viewer;
+    // Mesh visualization
+    viewer.data().set_mesh(verts, faces);
+
+    // selected vertex visualization
+    Eigen::RowVector3d vertexColor(1.0, 0.0, 0.0);
+    viewer.data().add_points(verts.row(vertexIndex), vertexColor);
+
+    // neighbors visualization
+    Eigen::RowVector3d neighborColor(0.0, 1.0, 0.0);
+    Eigen::MatrixXd neighborVerts(vv.size(), 3);
+    for (int i = 0; i < vv.size(); ++i) {
+        neighborVerts.row(i) = verts.row(vv[i]);
+    }
+    viewer.data().add_points(neighborVerts, neighborColor);
+
+    viewer.launch();
+    // neighbors edge visualization
+    Eigen::RowVector3d edgeColor(0.0, 0.0, 1.0); // 青色
+    Eigen::MatrixXi edges(vv.size() * 2, 2);
+    int edgeIndex = 0;
+    for (int i = 0; i < faces.rows(); ++i) {
+        int v1 = faces(i, 0);
+        int v2 = faces(i, 1);
+        int v3 = faces(i, 2);
+
+        if (std::find(vv.begin(), vv.end(), v1) != vv.end() && std::find(vv.begin(), vv.end(), v2) != vv.end()) {
+            edges(edgeIndex, 0) = v1;
+            edges(edgeIndex, 1) = v2;
+            ++edgeIndex;
+        }
+
+        if (std::find(vv.begin(), vv.end(), v2) != vv.end() && std::find(vv.begin(), vv.end(), v3) != vv.end()) {
+            edges(edgeIndex, 0) = v2;
+            edges(edgeIndex, 1) = v3;
+            ++edgeIndex;
+        }
+
+        if (std::find(vv.begin(), vv.end(), v3) != vv.end() && std::find(vv.begin(), vv.end(), v1) != vv.end()) {
+            edges(edgeIndex, 0) = v3;
+            edges(edgeIndex, 1) = v1;
+            ++edgeIndex;
+        }
+    }
+    // edges.conservativeResize(edgeIndex, 2);
+    // viewer.data().add_edges(verts, edges, edgeColor);
+}
+
+void visualizeNeighborhoods(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, int vertexIndex,
+                            std::vector<std::vector<int>> *neighborhoods) {
+    igl::opengl::glfw::Viewer viewer;
+
+    // Mesh visualization
+    viewer.data().set_mesh(verts, faces);
+
+    std::cout << "Index : " << vertexIndex << "\n";
+    std::cout << "all neighbor size : " << neighborhoods->size() << "\n";
+    std::cout << "selected neighbor size : " << neighborhoods[vertexIndex].size() << "\n";
+    std::cout << "selected neighbor[vertexIndex] : " << neighborhoods[vertexIndex].data() << "\n";
+
+    std::vector<int> vv = (*neighborhoods)[vertexIndex];
+    std::cout << "vv.size : " << vv.size() << "\n";
+
+    // Selected vertex visualization
+    Eigen::RowVector3d vertexColor(1.0, 0.0, 0.0);
+    viewer.data().add_points(verts.row(vertexIndex), vertexColor);
+    // Neighbors visualization
+    Eigen::RowVector3d neighborColor(0.0, 1.0, 0.0);
+    Eigen::MatrixXd neighborVerts;
+    neighborVerts.resize(vv.size(), 3);
+    for (size_t j = 0; j < vv.size(); ++j) {
+        std::cout << "**********\n";
+        neighborVerts.row(j) = verts.row(vv[j]);
+    }
+    std::cout << "neighbor verts size  : " << neighborVerts.size() << "\n";
+    viewer.data().add_points(neighborVerts, neighborColor);
+    viewer.launch();
+}
+
+void visualizeModel(const Eigen::MatrixXd verts, const Eigen::MatrixXi &faces, const Eigen::MatrixXd &feats) {
+    igl::opengl::glfw::Viewer viewer;
+    viewer.data().set_mesh(verts, faces);
+    if (feats.size() > 0) {
+        igl::ColorMapType cmap = igl::COLOR_MAP_TYPE_JET;
+        viewer.data().set_data(feats, cmap);
+    }
+    viewer.launch();
+}
+
 void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, CurvatureInfo &curvature, const std::string method) {
-    // Gaussian curvature, Mean curvature and so on represent local properties of a surface, so use them for different purposes
-    // Mean Curvature : (> 0) = 凸-plane, ( = 0) = plane or saddle, (< 0) : 凹-plane
-    // Gaussian Curvature : (>0) = dome-like, ( = 0) = plane, (< 0 ) = : saddle
+    // Nx3
+    curvature.PD1.resize(verts.rows(), 3);
+    curvature.PD2.resize(verts.rows(), 3);
+
+    // Nx1
+    curvature.PV1.resize(verts.rows(), 1);
+    curvature.PV2.resize(verts.rows(), 1);
+
+    CurvatureCalculator cc;
+    cc.init(verts.template cast<double>(), faces.template cast<int>());
+    cc.kRing = 5; // default is 5
+    cc.st = K_RING_SEARCH;
+    // cc.nt = AVERAGE; // default
+    cc.nt = PROJ_PLANE;
+    cc.projectionPlaneCheck = true; // default
+    cc.montecarlo = false;
+    cc.montecarloN = 0;
+
+    const size_t vertices_count = verts.rows();
+    std::vector<int> vv;
+
+    std::cout << "------------------------------- Verts number : " << verts.rows() << "\n";
+    std::vector<std::vector<int>>::pointer neighborhoods;
+
+    for (size_t i = 0; i < vertices_count; ++i) {
+        vv.clear();
+        cc.getKRing(i, cc.kRing, vv);
+        neighborhoods.push_back(vv);
+        std::cout << "+++++++++++++++++++++++ Neighborhoods size : " << neighborhoods[i].size() << "\n";
+    }
+
+    // Visualize neighborhoods
+    int vertexInd = 0;
+    visualizeNeighborhoods(verts, faces, vertexInd, neighborhoods);
+
     igl::principal_curvature(verts, faces, curvature.PD1, curvature.PD2, curvature.PV1, curvature.PV2);
     Eigen::MatrixXd H;
     if (method == "gaussian") {
@@ -693,16 +815,6 @@ void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::Matr
     } else {
         std::cerr << "Error : failed to calculate curvature\n";
     }
-}
-
-void visualizeModel(const Eigen::MatrixXd verts, const Eigen::MatrixXi &faces, const Eigen::MatrixXd &feats) {
-    igl::opengl::glfw::Viewer viewer;
-    viewer.data().set_mesh(verts, faces);
-    if (feats.size() > 0) {
-        igl::ColorMapType cmap = igl::COLOR_MAP_TYPE_JET;
-        viewer.data().set_data(feats, cmap);
-    }
-    viewer.launch();
 }
 
 sgraph *sgraph_from_mesh_data(const Eigen::MatrixXd &Verts, const Eigen::MatrixXi &Faces) {
@@ -735,11 +847,6 @@ sgraph *sgraph_from_mesh_data(const Eigen::MatrixXd &Verts, const Eigen::MatrixX
 void dump_geokdecomp_output_ply(const char *filename, const double *LQ, const double *Y, int D, int M, int K) {
     std::cout << "----------------------------------- Write Kernel \n";
     FILE *fp = fopen(filename, "w");
-    // wだとファイルが無かったら新規作成されるから，わざわざエラーハンドリングしなくて良いのでは？
-    //if (fp == NULL) {
-    //    fprintf(stderr, "ERROR: Failed to open file %s for writing.\n", filename);
-    //    exit(EXIT_FAILURE);
-    //}
 
     // Write PLY header
     fprintf(fp, "ply\n");
@@ -775,4 +882,78 @@ void dump_geokdecomp_output_ply(const char *filename, const double *LQ, const do
     }
 
     fclose(fp);
+}
+
+void dump_weight_output_ply(const char *filename, const double *W, const double *Y, int D, int M, int iter) {
+    std::cout << "----------------------------------- Write Weights at iteration " << iter << "\n";
+
+    FILE *fp = fopen(filename, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "ERROR: Failed to open file %s for writing.\n", filename);
+        exit(EXIT_FAILURE);
+    }
+
+    // Write PLY header
+    fprintf(fp, "ply\n");
+    fprintf(fp, "format ascii 1.0\n");
+    fprintf(fp, "element vertex %d\n", M);
+    fprintf(fp, "property double x\n");
+    fprintf(fp, "property double y\n");
+    fprintf(fp, "property double z\n");
+    fprintf(fp, "property double weight\n");
+    fprintf(fp, "end_header\n");
+
+    // Write vertex data
+    for (int m = 0; m < M; m++) {
+        // Write point coordinates
+        for (int d = 0; d < D; d++) {
+            fprintf(fp, "%.8f ", Y[m * D + d]);
+        }
+        // Write weight for the current point
+        fprintf(fp, "%.8f\n", W[m]);
+    }
+
+    fclose(fp);
+}
+
+void dumpCurvToPLY(const std::string &filename, const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, const CurvatureInfo &curv) {
+    std::ofstream plyFile(filename);
+    if (!plyFile.is_open()) {
+        std::cerr << "Failed to open file: " << filename << std::endl;
+        return;
+    }
+
+    // Write PLY header
+    plyFile << "ply" << std::endl;
+    plyFile << "format ascii 1.0" << std::endl;
+    plyFile << "element vertex " << verts.rows() << std::endl;
+    plyFile << "property float x" << std::endl;
+    plyFile << "property float y" << std::endl;
+    plyFile << "property float z" << std::endl;
+    plyFile << "property float pd1_x" << std::endl;
+    plyFile << "property float pd1_y" << std::endl;
+    plyFile << "property float pd1_z" << std::endl;
+    plyFile << "property float pd2_x" << std::endl;
+    plyFile << "property float pd2_y" << std::endl;
+    plyFile << "property float pd2_z" << std::endl;
+    plyFile << "property float pv1" << std::endl;
+    plyFile << "property float pv2" << std::endl;
+    plyFile << "property float curv" << std::endl;
+    plyFile << "element face " << faces.rows() << std::endl;
+    plyFile << "property list uchar int vertex_indices" << std::endl;
+    plyFile << "end_header" << std::endl;
+
+    // Write vertex data
+    for (int i = 0; i < verts.rows(); ++i) {
+        plyFile << verts(i, 0) << " " << verts(i, 1) << " " << verts(i, 2) << " " << curv.PD1(i, 0) << " " << curv.PD1(i, 1) << " " << curv.PD1(i, 2)
+                << " " << curv.PD2(i, 0) << " " << curv.PD2(i, 1) << " " << curv.PD2(i, 2) << " " << curv.PV1(i) << " " << curv.PV2(i) << " "
+                << curv.Curv(i) << std::endl;
+    }
+
+    // Write face data
+    for (int i = 0; i < faces.rows(); ++i) {
+        plyFile << "3 " << faces(i, 0) << " " << faces(i, 1) << " " << faces(i, 2) << std::endl;
+    }
+
+    plyFile.close();
 }

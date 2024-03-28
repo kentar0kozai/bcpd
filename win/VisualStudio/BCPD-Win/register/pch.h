@@ -88,3 +88,7 @@ void visualizeModel(const Eigen::MatrixXd verts, const Eigen::MatrixXi &faces, c
 sgraph *sgraph_from_mesh_data(const Eigen::MatrixXd &Verts, const Eigen::MatrixXi &Faces);
 
 void dump_geokdecomp_output_ply(const char *filename, const double *LQ, const double *Y, int D, int M, int K);
+
+void dump_weight_output_ply(const char *filename, const double *W, const double *Y, int D, int M, int iter);
+
+void dumpCurvToPLY(const std::string &filename, const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, const CurvatureInfo &curv);
