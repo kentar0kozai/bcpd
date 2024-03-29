@@ -724,18 +724,18 @@ void visualizeNeighborhood(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &
 }
 
 void visualizeNeighborhoods(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, int vertexIndex,
-                            std::vector<std::vector<int>> *neighborhoods) {
+                            std::vector<std::vector<int>>& neighborhoods) {
     igl::opengl::glfw::Viewer viewer;
 
     // Mesh visualization
     viewer.data().set_mesh(verts, faces);
-
+    std::cout << "------------------------------- Verts number : " << verts.rows() << "\n";
     std::cout << "Index : " << vertexIndex << "\n";
-    std::cout << "all neighbor size : " << neighborhoods->size() << "\n";
+    std::cout << "all neighbor size : " << neighborhoods.size() << "\n";
     std::cout << "selected neighbor size : " << neighborhoods[vertexIndex].size() << "\n";
-    std::cout << "selected neighbor[vertexIndex] : " << neighborhoods[vertexIndex].data() << "\n";
+    //std::cout << "selected neighbor[vertexIndex] : " << neighborhoods[vertexIndex].data() << "\n";
 
-    std::vector<int> vv = (*neighborhoods)[vertexIndex];
+    std::vector<int> vv = neighborhoods[vertexIndex];
     std::cout << "vv.size : " << vv.size() << "\n";
 
     // Selected vertex visualization
@@ -787,7 +787,7 @@ void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::Matr
     std::vector<int> vv;
 
     std::cout << "------------------------------- Verts number : " << verts.rows() << "\n";
-    std::vector<std::vector<int>>::pointer neighborhoods;
+    std::vector<std::vector<int>> neighborhoods;
 
     for (size_t i = 0; i < vertices_count; ++i) {
         vv.clear();
