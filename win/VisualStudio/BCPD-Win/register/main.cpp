@@ -130,6 +130,8 @@ int main(int argc, char **argv) {
     }
     calculatePrincipalCurvature(Y_verts, Y_faces, Y_Curv, curv_method);
     calculatePrincipalCurvature(X_verts, X_faces, X_Curv, curv_method);
+    dumpCurvToPLY("debug\\curv\\X_mesh.ply", X_verts, X_faces, X_Curv);
+    dumpCurvToPLY("debug\\curv\\Y_mesh.ply", Y_verts, Y_faces, Y_Curv);
     // visualizeModel(X_verts, X_faces, X_Curv.Curv);
 
     /* —”‚Ì‰Šú‰» */

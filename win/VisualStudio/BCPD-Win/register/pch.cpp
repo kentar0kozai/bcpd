@@ -724,7 +724,7 @@ void visualizeNeighborhood(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &
 }
 
 void visualizeNeighborhoods(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, int vertexIndex,
-                            std::vector<std::vector<int>>& neighborhoods) {
+                            std::vector<std::vector<int>> &neighborhoods) {
     igl::opengl::glfw::Viewer viewer;
 
     // Mesh visualization
@@ -733,7 +733,7 @@ void visualizeNeighborhoods(const Eigen::MatrixXd &verts, const Eigen::MatrixXi 
     std::cout << "Index : " << vertexIndex << "\n";
     std::cout << "all neighbor size : " << neighborhoods.size() << "\n";
     std::cout << "selected neighbor size : " << neighborhoods[vertexIndex].size() << "\n";
-    //std::cout << "selected neighbor[vertexIndex] : " << neighborhoods[vertexIndex].data() << "\n";
+    // std::cout << "selected neighbor[vertexIndex] : " << neighborhoods[vertexIndex].data() << "\n";
 
     std::vector<int> vv = neighborhoods[vertexIndex];
     std::cout << "vv.size : " << vv.size() << "\n";
@@ -741,16 +741,19 @@ void visualizeNeighborhoods(const Eigen::MatrixXd &verts, const Eigen::MatrixXi 
     // Selected vertex visualization
     Eigen::RowVector3d vertexColor(1.0, 0.0, 0.0);
     viewer.data().add_points(verts.row(vertexIndex), vertexColor);
+
     // Neighbors visualization
     Eigen::RowVector3d neighborColor(0.0, 1.0, 0.0);
     Eigen::MatrixXd neighborVerts;
     neighborVerts.resize(vv.size(), 3);
+
     for (size_t j = 0; j < vv.size(); ++j) {
-        std::cout << "**********\n";
         neighborVerts.row(j) = verts.row(vv[j]);
     }
-    std::cout << "neighbor verts size  : " << neighborVerts.size() << "\n";
+
+    std::cout << "neighbor verts size : " << neighborVerts.size() << "\n";
     viewer.data().add_points(neighborVerts, neighborColor);
+
     viewer.launch();
 }
 
@@ -796,9 +799,9 @@ void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::Matr
         std::cout << "+++++++++++++++++++++++ Neighborhoods size : " << neighborhoods[i].size() << "\n";
     }
 
-    // Visualize neighborhoods
-    int vertexInd = 0;
-    visualizeNeighborhoods(verts, faces, vertexInd, neighborhoods);
+    //// Visualize neighborhoods
+    // int vertexInd = 0;
+    // visualizeNeighborhoods(verts, faces, vertexInd, neighborhoods);
 
     igl::principal_curvature(verts, faces, curvature.PD1, curvature.PD2, curvature.PV1, curvature.PV2);
     Eigen::MatrixXd H;
@@ -917,9 +920,13 @@ void dump_weight_output_ply(const char *filename, const double *W, const double 
 }
 
 void dumpCurvToPLY(const std::string &filename, const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, const CurvatureInfo &curv) {
-    std::ofstream plyFile(filename);
+    std::filesystem::path currentPath = std::filesystem::current_path();
+    std::filesystem::path fullPath = currentPath / filename;
+    std::string dumpDirPath = fullPath.parent_path().string();
+    std::filesystem::create_directories(dumpDirPath);
+    std::ofstream plyFile(fullPath.string());
     if (!plyFile.is_open()) {
-        std::cerr << "Failed to open file: " << filename << std::endl;
+        std::cerr << "Failed to open file: " << fullPath.string() << std::endl;
         return;
     }
 
