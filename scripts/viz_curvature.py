@@ -228,6 +228,7 @@ if __name__ == "__main__":
     projected_X_d3, X_pd3_principal_comp = principal_analysis(X_Curv.PD3, X_PV3_norm)
     projected_Y_d3, Y_pd3_principal_comp = principal_analysis(Y_Curv.PD3, Y_PV3_norm)
 
+    # Raw curvature
     x_mesh, x_vf1, x_vf2, x_vf3 = visualize_principal_curvature(X_verts, 
                                                         X_faces, 
                                                         X_Curv.PD1, 
@@ -246,6 +247,26 @@ if __name__ == "__main__":
                                                         Y_Curv.PD3,
                                                         Y_Curv.PV3 * avg_y_edge_len,
                                                         scale=5)
+    
+    # Principal projected curvature
+    # x_mesh, x_vf1, x_vf2, x_vf3 = visualize_principal_curvature(X_verts, 
+    #                                                     X_faces, 
+    #                                                     projected_X_d1, 
+    #                                                     X_Curv.PV1 * avg_x_edge_len, 
+    #                                                     projected_X_d2,
+    #                                                     X_Curv.PV2 * avg_x_edge_len,
+    #                                                     projected_X_d3,
+    #                                                     X_Curv.PV3 * avg_x_edge_len,
+    #                                                     scale=5)
+    # y_mesh, y_vf1, y_vf2, y_vf3 = visualize_principal_curvature(Y_verts, 
+    #                                                     Y_faces, 
+    #                                                     projected_Y_d1, 
+    #                                                     Y_Curv.PV1 * avg_y_edge_len, 
+    #                                                     projected_Y_d2,
+    #                                                     Y_Curv.PV2 * avg_y_edge_len,
+    #                                                     projected_Y_d3,
+    #                                                     Y_Curv.PV3 * avg_y_edge_len,
+    #                                                     scale=5)
     
     show_two_mesh_and_vf(x_mesh, x_vf1, x_vf2, x_vf3, X_pd1_principal_comp,
                          y_mesh, y_vf1, y_vf2, y_vf3, Y_pd1_principal_comp,
