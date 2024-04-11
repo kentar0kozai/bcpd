@@ -3,6 +3,8 @@ import pyvista
 import open3d as o3d
 import time
 import copy
+    
+from sklearn.decomposition import PCA
 
 class CurvatureInfo:
     def __init__(self):
@@ -130,7 +132,9 @@ def visualize_principal_curvature(verts, faces, pd1, pv1, pd2, pv2, pd3, pv3, in
     return mesh, vf1, vf2, vf3
 
 
-def show_two_mesh_and_vf(mesh_x, x_vf1, x_vf2, x_vf3, mesh_y, y_vf1, y_vf2, y_vf3):
+def show_two_mesh_and_vf(mesh_x, x_vf1, x_vf2, x_vf3, x_vf1_comp,
+                         mesh_y, y_vf1, y_vf2, y_vf3, y_vf1_comp,
+                         sync_view:bool=True):
     # Create a subplot with 2 rows and 1 column
     plotter = pyvista.Plotter(shape=(1, 2))
 
@@ -141,6 +145,7 @@ def show_two_mesh_and_vf(mesh_x, x_vf1, x_vf2, x_vf3, mesh_y, y_vf1, y_vf2, y_vf
     plotter.add_mesh(x_vf2, line_width=2, color='g')# cmap='jet')
     plotter.add_mesh(x_vf3, line_width=2, color='b')
     plotter.add_title("Mesh X")
+    plotter = add_principal_comp(plotter, x_vf1_comp)
 
     # Add the second mesh and vector fields to the second subplot
     plotter.subplot(0, 1)
@@ -149,20 +154,52 @@ def show_two_mesh_and_vf(mesh_x, x_vf1, x_vf2, x_vf3, mesh_y, y_vf1, y_vf2, y_vf
     plotter.add_mesh(y_vf2, line_width=2, color='g')# cmap='jet')
     plotter.add_mesh(y_vf3, line_width=2, color='b')
     plotter.add_title("Mesh Y")
+    plotter = add_principal_comp(plotter, y_vf1_comp)
 
     # Link the camera between subplots
-    plotter.link_views()
+    if sync_view:
+        plotter.link_views()
 
     # Show the plot
     plotter.show()
 
+def principal_analysis(data, weights):
+    '''
+    Principal analization of Weighted data
+    '''
+    weights_norm = (weights - weights.min()) / (weights.max() - weights.min())
+    weights_column = weights_norm.reshape(-1, 1)
+    weighted_data = data * weights_column
+    pca = PCA(n_components=3) 
+    pca.fit(weighted_data)
+    principal_components = pca.components_
+    projected_data = pca.transform(weighted_data)
+    return projected_data, principal_components
 
+def add_principal_comp(plotter, principal_comp):
+    '''
+    Add principal components(1,2,3) to plotter
+    '''
+    origin = np.array([[0, 0, 0]])
+    for i, pc in enumerate(principal_comp):
+        if i == 0:
+            color = 'red'
+        elif i == 1:
+            color = 'green'
+        else:
+            color = 'blue'
+        
+        arrow = pyvista.Arrow(origin, pc, shaft_radius=0.02, tip_radius=0.04, tip_length=0.1, scale=10)
+        plotter.add_mesh(arrow, color=color)
+    return plotter
 
 if __name__ == "__main__":
     # Store principal curv direction 1, 2 and principal curv value 1,2
     # Use debug/curv/*.ply in main/cpp
-    X_verts, X_faces, X_Curv = load_ply_mesh("win/VisualStudio/BCPD-Win/debug/curv/X_mesh.ply")
-    Y_verts, Y_faces, Y_Curv = load_ply_mesh("win/VisualStudio/BCPD-Win/debug/curv/Y_mesh.ply")
+    x_path = "win/VisualStudio/BCPD-Win/debug/curv/X_mesh.ply"
+    y_path = "win/VisualStudio/BCPD-Win/debug/curv/Y_mesh.ply"
+    X_verts, X_faces, X_Curv = load_ply_mesh(x_path)
+    Y_verts, Y_faces, Y_Curv = load_ply_mesh(y_path)
 
     # compute average edge length but unused yet
     avg_x_edge_len = compute_average_edge_length(X_verts, X_faces)
@@ -175,6 +212,22 @@ if __name__ == "__main__":
     Y_Curv.PD3 = np.cross(Y_Curv.PD1, Y_Curv.PD2)
     Y_Curv.PV3 = (Y_Curv.PV1 + Y_Curv.PV2) / 2
 
+    X_PV1_norm = (X_Curv.PV1 - X_Curv.PV1.min()) / (X_Curv.PV1.max() - X_Curv.PV1.min())
+    X_PV2_norm = (X_Curv.PV2 - X_Curv.PV2.min()) / (X_Curv.PV2.max() - X_Curv.PV2.min())
+    X_PV3_norm = (X_Curv.PV3 - X_Curv.PV3.min()) / (X_Curv.PV3.max() - X_Curv.PV3.min())
+    Y_PV1_norm = (Y_Curv.PV1 - Y_Curv.PV1.min()) / (Y_Curv.PV1.max() - Y_Curv.PV1.min())
+    Y_PV2_norm = (Y_Curv.PV2 - Y_Curv.PV2.min()) / (Y_Curv.PV2.max() - Y_Curv.PV2.min())
+    Y_PV3_norm = (Y_Curv.PV3 - Y_Curv.PV3.min()) / (Y_Curv.PV3.max() - Y_Curv.PV3.min())
+
+    projected_X_d1, X_pd1_principal_comp = principal_analysis(X_Curv.PD1, X_PV1_norm)
+    projected_Y_d1, Y_pd1_principal_comp = principal_analysis(Y_Curv.PD1, Y_PV1_norm)
+
+    projected_X_d2, X_pd2_principal_comp = principal_analysis(X_Curv.PD2, X_PV2_norm)
+    projected_Y_d2, Y_pd2_principal_comp = principal_analysis(Y_Curv.PD2, Y_PV2_norm)
+
+    projected_X_d3, X_pd3_principal_comp = principal_analysis(X_Curv.PD3, X_PV3_norm)
+    projected_Y_d3, Y_pd3_principal_comp = principal_analysis(Y_Curv.PD3, Y_PV3_norm)
+
     x_mesh, x_vf1, x_vf2, x_vf3 = visualize_principal_curvature(X_verts, 
                                                         X_faces, 
                                                         X_Curv.PD1, 
@@ -183,7 +236,7 @@ if __name__ == "__main__":
                                                         X_Curv.PV2 * avg_x_edge_len,
                                                         X_Curv.PD3,
                                                         X_Curv.PV3 * avg_x_edge_len,
-                                                        scale=0.01)
+                                                        scale=5)
     y_mesh, y_vf1, y_vf2, y_vf3 = visualize_principal_curvature(Y_verts, 
                                                         Y_faces, 
                                                         Y_Curv.PD1, 
@@ -192,8 +245,16 @@ if __name__ == "__main__":
                                                         Y_Curv.PV2 * avg_y_edge_len,
                                                         Y_Curv.PD3,
                                                         Y_Curv.PV3 * avg_y_edge_len,
-                                                        scale=0.01)
+                                                        scale=5)
     
-    show_two_mesh_and_vf(x_mesh, x_vf1, x_vf2, x_vf3,
-                         y_mesh, y_vf1, y_vf2, y_vf3)
+    show_two_mesh_and_vf(x_mesh, x_vf1, x_vf2, x_vf3, X_pd1_principal_comp,
+                         y_mesh, y_vf1, y_vf2, y_vf3, Y_pd1_principal_comp,
+                         sync_view=False)
     
+    # show_two_mesh_and_vf(x_mesh, x_vf1, x_vf2, x_vf3, X_pd2_principal_comp,
+    #                      y_mesh, y_vf1, y_vf2, y_vf3, Y_pd2_principal_comp,
+    #                      sync_view=False)
+
+    # show_two_mesh_and_vf(x_mesh, x_vf1, x_vf2, x_vf3, X_pd3_principal_comp,
+    #                      y_mesh, y_vf1, y_vf2, y_vf3, Y_pd3_principal_comp,
+    #                      sync_view=False)
