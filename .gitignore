@@ -44,3 +44,6 @@
 /win/VisualStudio/BCPD-Win/output_y.interpolated.txt
 /win/VisualStudio/BCPD-Win/output_y.txt
 win/VisualStudio/BCPD-Win/source_eigen.ply
+/data/Mug
+imgui.ini
+.polyscope.ini
