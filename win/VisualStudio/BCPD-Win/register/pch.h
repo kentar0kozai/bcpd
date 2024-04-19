@@ -34,8 +34,6 @@ extern "C" {
 void init_genrand64(unsigned long s);
 }
 
-#include "igl/principal_curvature.h"
-
 #define SQ(x) ((x) * (x))
 #define M_PI 3.14159265358979323846 // pi
 
