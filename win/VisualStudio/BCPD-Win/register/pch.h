@@ -79,10 +79,15 @@ struct CurvatureInfo {
     Eigen::VectorXd PV2; // Principal curvature value 2
     Eigen::VectorXd Curv;
 };
-
 void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, CurvatureInfo &curvature, const std::string method);
 
+std::vector<std::vector<int>> calcKRing(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, CurvatureInfo &curvature,
+                                        const std::string method);
+
 void visualizeModel(const Eigen::MatrixXd verts, const Eigen::MatrixXi &faces, const Eigen::MatrixXd &feats);
+
+void visualizeNeighborhoods(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, int vertexIndex,
+                            std::vector<std::vector<int>> &neighborhoods);
 
 sgraph *sgraph_from_mesh_data(const Eigen::MatrixXd &Verts, const Eigen::MatrixXi &Faces);
 

@@ -767,6 +767,35 @@ void visualizeModel(const Eigen::MatrixXd verts, const Eigen::MatrixXi &faces, c
     viewer.launch();
 }
 
+std::vector<std::vector<int>> calcKRing(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, CurvatureInfo &curvature,
+                                        const std::string method) {
+    // Nx3
+    curvature.PD1.resize(verts.rows(), 3);
+    curvature.PD2.resize(verts.rows(), 3);
+    // Nx1
+    curvature.PV1.resize(verts.rows(), 1);
+    curvature.PV2.resize(verts.rows(), 1);
+    CurvatureCalculator cc;
+    cc.init(verts.template cast<double>(), faces.template cast<int>());
+    cc.kRing = 5; // default is 5
+    cc.st = K_RING_SEARCH;
+    cc.nt = AVERAGE; // default
+    // cc.nt = PROJ_PLANE;
+    cc.projectionPlaneCheck = true; // default
+    cc.montecarlo = false;
+    cc.montecarloN = 0;
+
+    const size_t vertices_count = verts.rows();
+    std::vector<int> vv;
+    std::vector<std::vector<int>> neighborhoods;
+    for (size_t i = 0; i < vertices_count; ++i) {
+        vv.clear();
+        cc.getKRing(i, cc.kRing, vv);
+        neighborhoods.push_back(vv);
+    }
+    return neighborhoods;
+}
+
 void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::MatrixXi &faces, CurvatureInfo &curvature, const std::string method) {
     // Nx3
     curvature.PD1.resize(verts.rows(), 3);
@@ -785,24 +814,14 @@ void calculatePrincipalCurvature(const Eigen::MatrixXd &verts, const Eigen::Matr
     cc.projectionPlaneCheck = true; // default
     cc.montecarlo = false;
     cc.montecarloN = 0;
-
     const size_t vertices_count = verts.rows();
     std::vector<int> vv;
-
-    std::cout << "------------------------------- Verts number : " << verts.rows() << "\n";
     std::vector<std::vector<int>> neighborhoods;
-
     for (size_t i = 0; i < vertices_count; ++i) {
         vv.clear();
         cc.getKRing(i, cc.kRing, vv);
         neighborhoods.push_back(vv);
-        std::cout << "+++++++++++++++++++++++ Neighborhoods size : " << neighborhoods[i].size() << "\n";
     }
-
-    //// Visualize neighborhoods
-    // int vertexInd = 0;
-    // visualizeNeighborhoods(verts, faces, vertexInd, neighborhoods);
-
     igl::principal_curvature(verts, faces, curvature.PD1, curvature.PD2, curvature.PV1, curvature.PV2);
     Eigen::MatrixXd H;
     if (method == "gaussian") {
